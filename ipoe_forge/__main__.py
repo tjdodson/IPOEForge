@@ -6,7 +6,6 @@ import asyncio
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 import mgrs
@@ -15,7 +14,13 @@ from rich.logging import RichHandler
 
 from . import __version__
 from .auth import resolve_sources
-from .elevation import download_dem, compute_slope, compute_hillshade, classify_movement, extract_contours
+from .elevation import (
+    classify_movement,
+    compute_hillshade,
+    compute_slope,
+    download_dem,
+    extract_contours,
+)
 from .geopackager import GeoPackageBuilder
 from .models import AuthMode, Bbox
 from .styles import generate_all_styles
@@ -45,7 +50,6 @@ def _mgrs_to_bbox(top_left: str, bottom_right: str) -> Bbox:
 @click.version_option(version=__version__, prog_name="IPOEForge")
 def cli() -> None:
     """IPOEForge — Automated IPOE map asset builder."""
-    pass
 
 
 @cli.command()
@@ -67,7 +71,7 @@ def cli() -> None:
 def build(
     bbox: tuple[str, str],
     name: str,
-    output: Optional[str],
+    output: str | None,
     zoom: int,
     mode: str,
     layers: str,
@@ -77,7 +81,7 @@ def build(
     mgrs: bool,
     vegetation: bool,
     hillshade: bool,
-    style_dir: Optional[str],
+    style_dir: str | None,
     skip: str,
     quiet: bool,
 ) -> None:
@@ -92,7 +96,7 @@ def build(
     # Parse MGRS bbox
     try:
         aoi_bbox = _mgrs_to_bbox(bbox[0], bbox[1])
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         console.print(f"[red]Invalid MGRS coordinates: {e}[/red]")
         sys.exit(1)
 
@@ -155,7 +159,7 @@ def build(
                     builder.add_vector_layer("contours", gdf)
 
             status["elevation"] = "success"
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"Elevation pipeline failed: {e}")
             status["elevation"] = f"failed: {e}"
 
@@ -167,7 +171,7 @@ def build(
             asyncio.run(download_and_mosaic(sources["topo"], aoi_bbox, zoom, topo_path, concurrency))
             builder.add_raster_layer("basemap", topo_path)
             status["basemap"] = "success"
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"Topo download failed: {e}")
             status["basemap"] = f"failed: {e}"
 
@@ -178,7 +182,7 @@ def build(
             asyncio.run(download_and_mosaic(sources["imagery"], aoi_bbox, zoom, img_path, concurrency))
             builder.add_raster_layer("imagery", img_path)
             status["imagery"] = "success"
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"Imagery download failed: {e}")
             status["imagery"] = f"failed: {e}"
 

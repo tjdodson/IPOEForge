@@ -7,7 +7,6 @@ from pathlib import Path
 
 import numpy as np
 import rasterio
-from rasterio.transform import from_bounds
 
 from .models import Bbox
 

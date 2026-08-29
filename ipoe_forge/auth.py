@@ -6,7 +6,6 @@ import logging
 import platform
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 import httpx
 
@@ -21,7 +20,7 @@ _NGA_TEST_URLS = [
 ]
 
 
-def _detect_pki_certs() -> Optional[dict]:
+def _detect_pki_certs() -> dict | None:
     """Attempt to detect DoD PKI certificates from the system."""
     system = platform.system()
 
@@ -29,7 +28,7 @@ def _detect_pki_certs() -> Optional[dict]:
         try:
             result = subprocess.run(
                 ["security", "find-certificate", "-a", "-c", "DoD", "-p"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True, text=True, timeout=10, check=False,
             )
             if result.returncode == 0 and result.stdout.strip():
                 return {"method": "keychain", "available": True}
@@ -46,7 +45,7 @@ def _detect_pki_certs() -> Optional[dict]:
         try:
             result = subprocess.run(
                 ["certutil", "-generateSSTFromCA", "-store", "Root", "roots.sst", "NUL"],
-                capture_output=True, timeout=10,
+                capture_output=True, timeout=10, check=False,
             )
             if result.returncode == 0:
                 return {"method": "windows_store", "available": True}

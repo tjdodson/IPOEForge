@@ -7,7 +7,6 @@ import logging
 import math
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 import httpx
 import numpy as np
@@ -30,7 +29,7 @@ async def _fetch_tile(
     coord: TileCoord,
     output_dir: Path,
     semaphore: asyncio.Semaphore,
-) -> Optional[Path]:
+) -> Path | None:
     """Download a single tile."""
     tile_path = output_dir / f"{coord.z}_{coord.x}_{coord.y}.png"
     if tile_path.exists():

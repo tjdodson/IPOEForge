@@ -6,7 +6,6 @@ import math
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 
 class TileFormat(Enum):
@@ -114,7 +113,7 @@ class AOIMetadata:
     name: str
     bbox: Bbox
     zoom: int = 12
-    output: Optional[Path] = None
+    output: Path | None = None
     mgrs: bool = False
     layers: LayerSet = LayerSet.ALL
     auth_mode: AuthMode = AuthMode.AUTO
