@@ -72,7 +72,7 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
     """
     spacing = _hatch_spacing(zoom, base=50.0, bbox_area_deg2=bbox_area_deg2)
     cross_spacing = max(15, spacing * 0.6)
-    border_width = max(0.5, 1.0 * _scale_factor(zoom))
+    border_width = max(0.3, 0.6 * _scale_factor(zoom))
     return f"""<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
 <qgis version="3.28.0">
   <renderer-v2 type="categorizedSymbol" attr="class">
@@ -85,7 +85,7 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
         <layer class="SimpleFill">
           <prop v="no" k="style"/>
           <prop v="{border_width}" k="width"/>
-          <prop v="0,80,0,255" k="color"/>
+          <prop v="0,100,0,200" k="color"/>
           <prop v="solid" k="penstyle"/>
         </layer>
         <layer class="LinePatternFill">
@@ -99,7 +99,7 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
         <layer class="SimpleFill">
           <prop v="no" k="style"/>
           <prop v="{border_width}" k="width"/>
-          <prop v="0,60,0,255" k="color"/>
+          <prop v="0,80,0,200" k="color"/>
           <prop v="solid" k="penstyle"/>
         </layer>
         <layer class="LinePatternFill">

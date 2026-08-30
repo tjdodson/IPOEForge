@@ -311,23 +311,24 @@ def build(
             f.unlink()
 
     # Symlink the deliverables (no file duplication)
+    # Only .tif and .gpkg — QGIS auto-loads matching .qml from same dir
     import_files = [
-        (f"{name}_basemap.tif", f"{name}_basemap.qml"),
-        (f"{name}_imagery.tif", f"{name}_imagery.qml"),
-        (f"{name}_movement_class.gpkg", f"{name}_movement_class.qml"),
+        f"{name}_basemap.tif",
+        f"{name}_imagery.tif",
+        f"{name}_movement_class.gpkg",
     ]
     linked = 0
-    for tif, qml in import_files:
-        tif_src = out_dir / tif
-        qml_src = out_dir / qml
-        if tif_src.exists():
-            (qgis_dir / tif).symlink_to(tif_src.resolve())
+    for fname in import_files:
+        src = out_dir / fname
+        if src.exists():
+            (qgis_dir / fname).symlink_to(src.resolve())
             linked += 1
-        if qml_src.exists():
-            (qgis_dir / qml).symlink_to(qml_src.resolve())
+    # Also symlink .qml styles for auto-apply
+    for qml in out_dir.glob(f"{name}_*.qml"):
+        (qgis_dir / qml.name).symlink_to(qml.resolve())
 
     console.print(f"\n[green]Done: {out_dir}[/green]")
-    console.print(f"[green]Open qgis_import/ and drag all files into QGIS ({linked} layers)[/green]")
+    console.print(f"[green]Open qgis_import/ and drag all {linked} layer files into QGIS[/green]")
 
     # Final cleanup — GDAL writes .aux.xml after everything else
     for pattern in ("*.aux.xml", ".DS_Store"):
