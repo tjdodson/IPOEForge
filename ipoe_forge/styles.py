@@ -268,8 +268,7 @@ def generate_all_styles(
     if layer_prefix and output_dir.parent:
         parent = output_dir.parent
         auto_apply = {
-            f"{layer_prefix}movement_class_vec.qml": _movement_vector_qml(zoom, bbox_area_deg2),
-            f"{layer_prefix}movement_class.qml": MOVEMENT_CLASS_QML,
+            f"{layer_prefix}movement_class.qml": _movement_vector_qml(zoom, bbox_area_deg2),
             f"{layer_prefix}slope.qml": _raster_gray_qml("slope"),
             f"{layer_prefix}hillshade.qml": _raster_gray_qml("hillshade"),
             f"{layer_prefix}dem.qml": _raster_gray_qml("dem"),

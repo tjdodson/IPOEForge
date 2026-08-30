@@ -296,6 +296,17 @@ def build(
     console.print(f"\n[green]Done: {out_dir}[/green]")
     console.print("[green]Drag .tif files into QGIS to view layers[/green]")
 
+    # Clean up GDAL artifacts and stale files from output directory
+    for pattern in ("*.aux.xml", ".DS_Store", "*.tif.xml", "*_vec.qml"):
+        for f in out_dir.glob(pattern):
+            f.unlink()
+    # Also clean styles/ subdirectory of non-QML files
+    styles_dir = out_dir / "styles"
+    if styles_dir.is_dir():
+        for f in styles_dir.iterdir():
+            if f.is_file() and f.suffix != ".qml":
+                f.unlink()
+
     if any("failed" in v for v in status.values()):
         sys.exit(1)
 
