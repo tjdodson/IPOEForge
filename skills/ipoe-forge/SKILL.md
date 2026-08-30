@@ -90,6 +90,14 @@ ipoe build \
   --hillshade
 ```
 
+### Rebuild from Manifest
+
+Share `build.json` with someone and they can recreate the exact build:
+
+```bash
+ipoe rebuild path/to/build.json
+```
+
 ### Key Options
 
 | Option | Default | Notes |
