@@ -293,19 +293,37 @@ def build(
         manifest_path.write_text(json.dumps(manifest, indent=2))
         progress.update(t, completed=1)
 
-    console.print(f"\n[green]Done: {out_dir}[/green]")
-    console.print("[green]Drag .tif files into QGIS to view layers[/green]")
-
-    # Clean up GDAL artifacts and stale files from output directory
+    # Clean up GDAL artifacts and stale files
     for pattern in ("*.aux.xml", ".DS_Store", "*.tif.xml", "*_vec.qml"):
         for f in out_dir.glob(pattern):
             f.unlink()
-    # Also clean styles/ subdirectory of non-QML files
-    styles_dir = out_dir / "styles"
-    if styles_dir.is_dir():
-        for f in styles_dir.iterdir():
-            if f.is_file() and f.suffix != ".qml":
-                f.unlink()
+
+    # Create curated qgis_import/ with symlinks — the only folder users need
+    qgis_dir = out_dir / "qgis_import"
+    qgis_dir.mkdir(exist_ok=True)
+    # Clear old symlinks
+    for f in qgis_dir.iterdir():
+        if f.is_symlink():
+            f.unlink()
+
+    # Symlink the deliverables (no file duplication)
+    import_files = [
+        (f"{name}_basemap.tif", f"{name}_basemap.qml"),
+        (f"{name}_imagery.tif", f"{name}_imagery.qml"),
+        (f"{name}_movement_class.gpkg", f"{name}_movement_class.qml"),
+    ]
+    linked = 0
+    for tif, qml in import_files:
+        tif_src = out_dir / tif
+        qml_src = out_dir / qml
+        if tif_src.exists():
+            (qgis_dir / tif).symlink_to(tif_src.resolve())
+            linked += 1
+        if qml_src.exists():
+            (qgis_dir / qml).symlink_to(qml_src.resolve())
+
+    console.print(f"\n[green]Done: {out_dir}[/green]")
+    console.print(f"[green]Open qgis_import/ and drag all files into QGIS ({linked} layers)[/green]")
 
     if any("failed" in v for v in status.values()):
         sys.exit(1)
