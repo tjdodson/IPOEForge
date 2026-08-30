@@ -100,7 +100,7 @@ def _write_qgis_project(
   <mapcanvas rotation="0" name="mapcanvas">
     <extent xmax="130" ymax="37" xmin="128" ymin="35"/>
     <layers/>
-    < CRS>{crs}</CRS>
+    <crs>{crs}</crs>
   </mapcanvas>
 </qgis>"""
 

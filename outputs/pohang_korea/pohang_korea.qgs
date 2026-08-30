@@ -121,6 +121,6 @@
   <mapcanvas rotation="0" name="mapcanvas">
     <extent xmax="130" ymax="37" xmin="128" ymin="35"/>
     <layers/>
-    < CRS>EPSG:4326</CRS>
+    <crs>EPSG:4326</crs>
   </mapcanvas>
 </qgis>
