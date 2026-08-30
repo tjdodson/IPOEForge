@@ -1,0 +1,85 @@
+{
+  "ipoe_version": "0.1.0",
+  "generated_at": "2026-08-30T17:26:17.239963+00:00",
+  "aoi": {
+    "name": "pohang_korea",
+    "mgrs_bbox": [
+      "52SEF2009",
+      "52SEE4082"
+    ],
+    "wgs84_bbox": {
+      "west": 129.2225430976195,
+      "south": 35.98161237850674,
+      "east": 129.44371073602207,
+      "north": 36.22565213924355
+    }
+  },
+  "parameters": {
+    "zoom": 13,
+    "mode": "public",
+    "dem_product": "SRTM1",
+    "contour_interval_m": 20.0,
+    "hillshade": true
+  },
+  "sources": {
+    "topo": {
+      "name": "OpenTopoMap",
+      "url_template": "https://tile.opentopomap.org/{z}/{x}/{y}.png",
+      "attribution": "\u00a9 OpenStreetMap contributors, SRTM | CC-BY-SA"
+    },
+    "imagery": {
+      "name": "ESRI World Imagery",
+      "url_template": "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      "attribution": "\u00a9 Esri, Maxar, Earthstar Geographics"
+    }
+  },
+  "layers": {
+    "elevation": "success",
+    "basemap": "success",
+    "imagery": "success"
+  },
+  "outputs": {
+    "pohang_korea_basemap.tif": {
+      "size_bytes": 2437905,
+      "format": "tif"
+    },
+    "pohang_korea_dem.tif": {
+      "size_bytes": 757491,
+      "format": "tif"
+    },
+    "pohang_korea_hillshade.tif": {
+      "size_bytes": 617899,
+      "format": "tif"
+    },
+    "pohang_korea_imagery.tif": {
+      "size_bytes": 6334387,
+      "format": "tif"
+    },
+    "pohang_korea_movement.tif": {
+      "size_bytes": 112768,
+      "format": "tif"
+    },
+    "pohang_korea_movement_class.gpkg": {
+      "size_bytes": 8077312,
+      "format": "gpkg"
+    },
+    "pohang_korea_slope.tif": {
+      "size_bytes": 1395035,
+      "format": "tif"
+    },
+    "styles/": {
+      "files": [
+        "basemap.qml",
+        "dem.qml",
+        "hillshade.qml",
+        "imagery.qml",
+        "movement_class.qml",
+        "movement_class_vec.qml",
+        "roads.qml",
+        "slope.qml",
+        "urban_areas.qml"
+      ],
+      "count": 9
+    }
+  }
+}

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import click
@@ -27,6 +29,65 @@ from .tile_downloader import download_and_mosaic
 
 console = Console()
 logger = logging.getLogger(__name__)
+
+
+def _build_manifest(
+    name: str,
+    bbox_input: tuple[str, str],
+    aoi_bbox: Bbox,
+    zoom: int,
+    mode: str,
+    dem_product: str,
+    contour_interval: float,
+    hillshade: bool,
+    sources: dict,
+    status: dict[str, str],
+    out_dir: Path,
+) -> dict:
+    """Generate a build manifest JSON for reproducibility."""
+    # Collect output files with sizes
+    outputs = {}
+    for f in sorted(out_dir.iterdir()):
+        if f.is_file() and f.suffix in (".tif", ".gpkg"):
+            outputs[f.name] = {
+                "size_bytes": f.stat().st_size,
+                "format": f.suffix.lstrip("."),
+            }
+    # Styles
+    style_dir = out_dir / "styles"
+    if style_dir.is_dir():
+        outputs["styles/"] = {
+            "files": [s.name for s in sorted(style_dir.glob("*.qml"))],
+            "count": len(list(style_dir.glob("*.qml"))),
+        }
+
+    return {
+        "ipoe_version": __version__,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "aoi": {
+            "name": name,
+            "mgrs_bbox": list(bbox_input),
+            "wgs84_bbox": {
+                "west": aoi_bbox.west,
+                "south": aoi_bbox.south,
+                "east": aoi_bbox.east,
+                "north": aoi_bbox.north,
+            },
+        },
+        "parameters": {
+            "zoom": zoom,
+            "mode": mode,
+            "dem_product": dem_product,
+            "contour_interval_m": contour_interval,
+            "hillshade": hillshade,
+        },
+    "sources": {
+        k: {"name": v.name, "url_template": v.url_template, "attribution": v.attribution}
+        for k, v in sources.items()
+    },
+        "layers": status,
+        "outputs": outputs,
+    }
 
 
 def _mgrs_to_bbox(mgrs_top_left: str, mgrs_bottom_right: str) -> Bbox:
@@ -173,6 +234,16 @@ def build(
     style_path = out_dir / "styles"
     console.print(f"[cyan]Generating QML styles → {style_path}[/cyan]")
     generate_all_styles(style_path, zoom)
+
+    # Build manifest
+    manifest = _build_manifest(
+        name=name, bbox_input=bbox, aoi_bbox=aoi_bbox, zoom=zoom,
+        mode=mode, dem_product=dem_product, contour_interval=contour_interval,
+        hillshade=hillshade, sources=sources, status=status, out_dir=out_dir,
+    )
+    manifest_path = out_dir / "build.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+    console.print(f"[cyan]Build manifest → {manifest_path}[/cyan]")
 
     console.print(f"\n[green]Done: {out_dir}[/green]")
     console.print("[green]Drag .tif files into QGIS to view layers[/green]")
