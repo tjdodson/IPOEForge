@@ -196,5 +196,46 @@ def generate_all_styles(output_dir: Path, zoom: int = 13) -> None:
     # Roads
     (output_dir / "roads.qml").write_text(_roads_qml(zoom))
 
+    # Raster styles — singleband gray with min/max stretch
+    for layer in ("slope", "hillshade", "dem"):
+        (output_dir / f"{layer}.qml").write_text(_raster_gray_qml(layer))
+
+    # Multiband color (RGB)
+    for layer in ("basemap", "imagery"):
+        (output_dir / f"{layer}.qml").write_text(_rgb_raster_qml(layer))
+
     count = len(list(output_dir.glob("*.qml")))
     logger.info(f"Generated {count} QML styles in {output_dir}")
+
+
+def _raster_gray_qml(layer_name: str) -> str:
+    """Grayscale singleband raster style."""
+    return f"""<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis version="3.28.0">
+  <rasterrenderer type="singlebandgray" grayBand="1" gradient="BlackToWhite">
+    <min max envelope="0,0,0,0" basedat="1"/>
+    <colorramp type="gradient" name="">
+      <prop v="0,0,0,255" k="color1"/>
+      <prop v="255,255,255,255" k="color2"/>
+    </colorramp>
+  </rasterrenderer>
+  <brightnesscontrast brightness="0" contrast="0"/>
+  <huesaturation saturation="0" grayscaleMode="0" colorizeColor="255,128,0,255" colorizeOn="0" colorizeStrength="100"/>
+  <rastershader>
+    <minmaxpixelvaluescalculation>
+      <Extent dataCoordinate="true"/>
+    </minmaxpixelvaluescalculation>
+  </rastershader>
+</qgis>
+"""
+
+
+def _rgb_raster_qml(layer_name: str) -> str:
+    """Multiband RGB raster style."""
+    return f"""<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis version="3.28.0">
+  <rasterrenderer type="multibandcolor" redBand="1" greenBand="2" blueBand="3"/>
+  <brightnesscontrast brightness="0" contrast="0"/>
+  <huesaturation saturation="0" grayscaleMode="0" colorizeColor="255,128,0,255" colorizeOn="0" colorizeStrength="100"/>
+</qgis>
+"""

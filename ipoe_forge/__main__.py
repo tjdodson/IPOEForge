@@ -201,10 +201,10 @@ def build(
 
     builder.close()
 
-    # Styles
-    if style_dir:
-        console.print("[cyan]Generating QML styles...[/cyan]")
-        generate_all_styles(Path(style_dir), zoom)
+    # Styles — always generate into the output directory
+    style_path = output_path.parent / "styles"
+    console.print(f"[cyan]Generating QML styles → {style_path}[/cyan]")
+    generate_all_styles(style_path, zoom)
 
     console.print(f"[green]Done: {output_path}[/green]")
 
