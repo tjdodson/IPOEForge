@@ -298,6 +298,14 @@ def build(
         for f in out_dir.glob(pattern):
             f.unlink()
 
+    # Remove root-level .qml files (duplicated via symlinks in qgis_import/)
+    for f in out_dir.glob("*.qml"):
+        f.unlink()
+    # Remove raw movement.tif (redundant with GPKG)
+    raw_movement = out_dir / f"{name}_movement.tif"
+    if raw_movement.exists():
+        raw_movement.unlink()
+
     # Create curated qgis_import/ with symlinks — the only folder users need
     qgis_dir = out_dir / "qgis_import"
     qgis_dir.mkdir(exist_ok=True)
