@@ -282,7 +282,7 @@ Each MCOO component is a **separate toggleable layer** in QGIS. Users can enable
 | `urban_areas` | MultiPolygon | Built-up area boundaries | Black cross-hatch | ❌ Not started |
 | `avenues_of_approach` | LineString | Mounted/dismounted/air avenues | Blue (friendly) / Red (threat) | ❌ Not started |
 | `mobility_corridors` | Polygon | Restricted movement corridors | Black | ❌ Not started |
-| `key_terrain` | Polygon | Key terrain features | Purple | ❌ Not started |
+| `key_terrain_candidates` | Point | Hilltops, bridges, canalizing terrain | Purple (off by default) | ❌ Not started |
 | `obstacles` | Polygon | Natural and man-made obstacles | Black | ❌ Not started |
 | `cover_concealment` | Polygon | Cover and concealment areas | — | ❌ Not started |
 | `observation_fire` | Polygon | Observation and fields of fire | — | ❌ Not started |
@@ -453,16 +453,19 @@ The vectorized movement layer (`movement_class.gpkg`) renders proper hatch patte
 
 ### MCOO Color Control Measures (ATP 2-01.3 Table 4-4)
 
-| Element | Color | Layer |
-|---------|-------|-------|
-| Avenue of Approach | Blue (friendly) / Black (neutral) / Red (threat) | `avenues_of_approach` |
-| Built-up Area | Black | `urban_areas` |
-| Hydrology | Blue | `hydro_water`, `hydro_rivers` |
-| Key Terrain | Purple | `key_terrain` |
-| Mobility Corridor | Black | `mobility_corridors` |
-| Obstacles (natural/man-made) | Black | `obstacles` |
-| Restricted Terrain | Green | `movement_class` (restricted) |
-| Severely Restricted Terrain | Green | `movement_class` (severely restricted) |
+| Element | Color | Layer | Auto-generated? |
+|---------|-------|-------|----------------|
+| Avenue of Approach | Blue (friendly) / Black (neutral) / Red (threat) | `avenues_of_approach` | Yes |
+| Built-up Area | Black | `urban_areas` | Yes |
+| Hydrology | Blue | `hydro_water`, `hydro_rivers` | Yes |
+| Key Terrain | Purple circle with K | Analyst-placed | **No** — requires commander decision |
+| Key Terrain Candidates | Purple | `key_terrain_candidates` | Yes (off by default) |
+| Mobility Corridor | Black | `mobility_corridors` | Yes |
+| Obstacles (natural/man-made) | Black | `obstacles` | Yes |
+| Restricted Terrain | Green | `movement_class` (restricted) | Yes |
+| Severely Restricted Terrain | Green | `movement_class` (severely restricted) | Yes |
+
+**Key Terrain Note:** The purple K symbol is a *commander's decision* — terrain worth dedicating combat power to. If everything is key terrain, nothing is. The `key_terrain_candidates` layer auto-detects hilltops, bridges, and canalizing terrain as potential candidates, but is **off by default**. Analysts toggle it on for review, then manually place the K symbol where warranted.
 
 ### 8.3 Urban Buildup (Black Cross-Hatch)
 
