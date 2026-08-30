@@ -1,8 +1,9 @@
 """Tests for GeoPackage assembly."""
 
+
 import geopandas as gpd
-from pathlib import Path
 from shapely.geometry import Point
+
 from ipoe_forge.geopackager import GeoPackageBuilder
 
 

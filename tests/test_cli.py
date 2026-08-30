@@ -1,6 +1,7 @@
 """Tests for CLI."""
 
 from click.testing import CliRunner
+
 from ipoe_forge.__main__ import cli
 
 

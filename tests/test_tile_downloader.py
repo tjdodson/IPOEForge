@@ -1,9 +1,10 @@
 """Tests for tile downloading and mosaic."""
 
 from pathlib import Path
-from ipoe_forge.tile_downloader import mosaic_tiles, _build_tile_url
+
 from ipoe_forge.config import TileSource
 from ipoe_forge.models import Bbox, TileCoord, TileGrid
+from ipoe_forge.tile_downloader import _build_tile_url, mosaic_tiles
 
 
 def test_build_tile_url_standard():

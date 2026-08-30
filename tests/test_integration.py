@@ -2,6 +2,7 @@
 
 import pytest
 from click.testing import CliRunner
+
 from ipoe_forge.__main__ import cli
 
 
@@ -11,14 +12,12 @@ def test_full_build(tmp_path):
     runner = CliRunner()
     result = runner.invoke(cli, [
         "build",
-        "--bbox", "32QHM8034 32QHM8134",
+        "--bbox", "52SEF2009", "52SEF2109",
         "--name", "test_int",
-        "--output", str(tmp_path / "test_int.gpkg"),
+        "--output", str(tmp_path / "test_int"),
         "--zoom", "13",
         "--mode", "public",
-        "--no-mgrs",
         "--no-hillshade",
-        "--no-vegetation",
         "--quiet",
     ])
 
@@ -27,4 +26,6 @@ def test_full_build(tmp_path):
         import traceback
         traceback.print_exception(type(result.exception), result.exception, result.exception.__traceback__)
 
-    assert (tmp_path / "test_int.gpkg").exists()
+    out_dir = tmp_path / "test_int"
+    assert out_dir.exists()
+    assert any(out_dir.glob("*.tif"))

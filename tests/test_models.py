@@ -1,7 +1,8 @@
 """Tests for core data models."""
 
 import pytest
-from ipoe_forge.models import Bbox, TileCoord, TileGrid, AOIMetadata, AuthMode, LayerSet
+
+from ipoe_forge.models import AOIMetadata, AuthMode, Bbox, LayerSet, TileGrid
 
 
 class TestBbox:

@@ -210,7 +210,7 @@ def generate_all_styles(output_dir: Path, zoom: int = 13) -> None:
 
 def _raster_gray_qml(layer_name: str) -> str:
     """Grayscale singleband raster style."""
-    return f"""<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+    return """<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
 <qgis version="3.28.0">
   <rasterrenderer type="singlebandgray" grayBand="1" gradient="BlackToWhite">
     <min max envelope="0,0,0,0" basedat="1"/>
@@ -232,10 +232,49 @@ def _raster_gray_qml(layer_name: str) -> str:
 
 def _rgb_raster_qml(layer_name: str) -> str:
     """Multiband RGB raster style."""
-    return f"""<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+    return """<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
 <qgis version="3.28.0">
   <rasterrenderer type="multibandcolor" redBand="1" greenBand="2" blueBand="3"/>
   <brightnesscontrast brightness="0" contrast="0"/>
   <huesaturation saturation="0" grayscaleMode="0" colorizeColor="255,128,0,255" colorizeOn="0" colorizeStrength="100"/>
+</qgis>
+"""
+
+
+def _mgrs_grid_qml(zoom: int) -> str:
+    """MGRS grid overlay QML with scale-dependent label sizes."""
+    label_size = max(8, 14 * _scale_factor(zoom))
+    line_width = max(0.3, 0.8 * _scale_factor(zoom))
+    return f"""<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis version="3.28.0">
+  <renderer-v2 type="RuleRenderer">
+    <rules>
+      <rule filter="type='grid_line'" label="Grid Lines">
+        <symbol type="line" name="0" alpha="0.5">
+          <layer class="SimpleLine">
+            <prop v="{line_width}" k="line_width"/>
+            <prop v="gray" k="line_color"/>
+            <prop v="dash" k="line_style"/>
+          </layer>
+        </symbol>
+      </rule>
+      <rule filter="type='grid_label'" label="Grid Labels">
+        <symbol type="marker" name="1" alpha="1">
+          <layer class="SimpleMarker">
+            <prop v="0" k="size"/>
+            <prop v="0,0,0,0" k="color"/>
+          </layer>
+          <layer class="SimpleText">
+            <prop v="label" k="Field"/>
+            <prop v="{label_size}" k="size"/>
+            <prop v="1" k="enabled"/>
+            <prop v="black" k="color"/>
+            <prop v="Bold" k="weight"/>
+            <prop v="Arial" k="family"/>
+          </layer>
+        </symbol>
+      </rule>
+    </rules>
+  </renderer-v2>
 </qgis>
 """

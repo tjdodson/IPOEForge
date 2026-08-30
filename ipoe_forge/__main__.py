@@ -13,19 +13,19 @@ from rich.logging import RichHandler
 
 from . import __version__
 from .auth import resolve_sources
-from .config import PUBLIC_SOURCES
 from .elevation import (
     classify_movement,
     compute_hillshade,
     compute_slope,
-    extract_contours,
     download_dem,
+    extract_contours,
 )
 from .models import AuthMode, Bbox
 from .styles import generate_all_styles
 from .tile_downloader import download_and_mosaic
 
 console = Console()
+logger = logging.getLogger(__name__)
 
 
 def _mgrs_to_bbox(mgrs_top_left: str, mgrs_bottom_right: str) -> Bbox:
@@ -61,6 +61,8 @@ def cli() -> None:
 @click.option("--dem-product", type=click.Choice(["SRTM1", "SRTM3"]), default="SRTM1")
 @click.option("--contour-interval", type=float, default=20.0, help="Contour interval in meters")
 @click.option("--concurrency", type=int, default=8, help="Parallel tile downloads")
+@click.option("--batch-size", type=int, default=100, help="Tiles per batch")
+@click.option("--batch-delay", type=float, default=2.0, help="Seconds between batches")
 @click.option("--hillshade/--no-hillshade", default=False, help="Computed hillshade layer")
 @click.option("--skip", type=str, default="", help="Comma-separated layers to skip")
 @click.option("--quiet/--no-quiet", default=False, help="Suppress progress")
@@ -74,6 +76,8 @@ def build(
     dem_product: str,
     contour_interval: float,
     concurrency: int,
+    batch_size: int,
+    batch_delay: float,
     hillshade: bool,
     skip: str,
     quiet: bool,
@@ -144,7 +148,7 @@ def build(
         try:
             console.print("[cyan]Downloading topo tiles...[/cyan]")
             topo_path = out_dir / f"{name}_basemap.tif"
-            asyncio.run(download_and_mosaic(sources["topo"], aoi_bbox, zoom, topo_path, concurrency))
+            asyncio.run(download_and_mosaic(sources["topo"], aoi_bbox, zoom, topo_path, concurrency, batch_size, batch_delay))
             status["basemap"] = "success"
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Topo download failed: {e}")
@@ -154,7 +158,7 @@ def build(
         try:
             console.print("[cyan]Downloading imagery tiles...[/cyan]")
             img_path = out_dir / f"{name}_imagery.tif"
-            asyncio.run(download_and_mosaic(sources["imagery"], aoi_bbox, zoom, img_path, concurrency))
+            asyncio.run(download_and_mosaic(sources["imagery"], aoi_bbox, zoom, img_path, concurrency, batch_size, batch_delay))
             status["imagery"] = "success"
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Imagery download failed: {e}")

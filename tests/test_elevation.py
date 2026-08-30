@@ -1,10 +1,12 @@
 """Tests for elevation processing."""
 
+from pathlib import Path
+
 import numpy as np
 import rasterio
-from pathlib import Path
 from rasterio.transform import from_bounds
-from ipoe_forge.elevation import compute_slope, compute_hillshade, classify_movement
+
+from ipoe_forge.elevation import classify_movement, compute_hillshade, compute_slope
 
 
 def _make_test_dem(path: Path, width: int = 100, height: int = 100) -> Path:

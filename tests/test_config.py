@@ -1,6 +1,6 @@
 """Tests for configuration."""
 
-from ipoe_forge.config import TileSource, PUBLIC_SOURCES, NGA_SOURCES, SLOPE_THRESHOLDS
+from ipoe_forge.config import NGA_SOURCES, PUBLIC_SOURCES, SLOPE_THRESHOLDS
 
 
 def test_public_sources_have_topo_and_imagery():

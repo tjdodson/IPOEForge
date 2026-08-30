@@ -1,9 +1,10 @@
 """Tests for auth and source resolution."""
 
 from unittest.mock import patch
+
 from ipoe_forge.auth import resolve_sources
+from ipoe_forge.config import NGA_SOURCES, PUBLIC_SOURCES
 from ipoe_forge.models import AuthMode
-from ipoe_forge.config import PUBLIC_SOURCES, NGA_SOURCES
 
 
 def test_public_mode_returns_public():
@@ -16,7 +17,7 @@ def test_public_mode_returns_public():
 @patch("ipoe_forge.auth._test_nga_reachable", return_value=True)
 @patch("ipoe_forge.auth._detect_pki_certs", return_value={"method": "test"})
 def test_auto_mode_fallback_when_pki_fails(mock_certs, mock_reachable, mock_pki):
-    sources, msg = resolve_sources(AuthMode.AUTO)
+    sources, _msg = resolve_sources(AuthMode.AUTO)
     assert sources == PUBLIC_SOURCES
 
 
@@ -24,7 +25,7 @@ def test_auto_mode_fallback_when_pki_fails(mock_certs, mock_reachable, mock_pki)
 @patch("ipoe_forge.auth._test_nga_reachable", return_value=True)
 @patch("ipoe_forge.auth._detect_pki_certs", return_value={"method": "test"})
 def test_auto_mode_pki_success(mock_certs, mock_reachable, mock_pki):
-    sources, msg = resolve_sources(AuthMode.AUTO)
+    sources, _msg = resolve_sources(AuthMode.AUTO)
     assert sources == NGA_SOURCES
 
 
