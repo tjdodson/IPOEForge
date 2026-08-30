@@ -218,7 +218,7 @@ def classify_movement(
 def vectorize_movement(
     movement_path: Path,
     output_path: Path,
-    smooth_radius: int = 15,
+    smooth_radius: int = 10,
     simplify_tolerance: float = 0.0005,
 ) -> Path:
     """Convert movement classification raster to vector polygons.
@@ -272,6 +272,17 @@ def vectorize_movement(
     labels = {1: "Restricted", 2: "Severely Restricted"}
     for value, geom in classes.items():
         records.append({"class": value, "label": labels[value], "geometry": geom})
+
+    if not records:
+        logger.warning("No restricted polygons found — area may be too flat")
+        # Write empty GPKG with correct schema
+        import geopandas as gpd
+        empty = gpd.GeoDataFrame(
+            columns=["class", "label", "geometry"], crs=src.crs
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        empty.to_file(output_path, driver="GPKG", index=False)
+        return output_path
 
     gdf = gpd.GeoDataFrame(records, crs=src.crs)
     output_path.parent.mkdir(parents=True, exist_ok=True)
