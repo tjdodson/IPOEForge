@@ -208,6 +208,57 @@ def classify_movement(slope_path: Path, output_path: Path) -> Path:
     return output_path
 
 
+def vectorize_movement(
+    movement_path: Path,
+    output_path: Path,
+    simplify_tolerance: float = 0.0001,
+) -> Path:
+    """Convert movement classification raster to vector polygons.
+
+    Produces a GPKG with a 'class' attribute (0=unrestricted, 1=restricted,
+    2=severely restricted) suitable for hatch pattern rendering in QGIS.
+    """
+    import geopandas as gpd
+    from rasterio.features import shapes
+    from shapely.geometry import shape
+    from shapely.ops import unary_union
+
+    logger.info("Vectorizing movement classification...")
+
+    with rasterio.open(movement_path) as src:
+        data = src.read(1)
+        transform = src.transform
+
+        # Polygonize each class separately, then merge to reduce vertex count
+        classes = {}
+        for value in [0, 1, 2]:
+            mask = data == value
+            if not mask.any():
+                continue
+            polys = []
+            for geom, val in shapes(data.astype(np.int16), mask=mask, transform=transform):
+                if val == value:
+                    polys.append(shape(geom))
+            if polys:
+                merged = unary_union(polys)
+                if simplify_tolerance > 0:
+                    merged = merged.simplify(simplify_tolerance, preserve_topology=True)
+                classes[value] = merged
+
+    # Build GeoDataFrame
+    records = []
+    labels = {0: "Unrestricted", 1: "Restricted", 2: "Severely Restricted"}
+    for value, geom in classes.items():
+        records.append({"class": value, "label": labels[value], "geometry": geom})
+
+    gdf = gpd.GeoDataFrame(records, crs=src.crs)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    gdf.to_file(output_path, driver="GPKG", index=False)
+
+    logger.info(f"Movement vectors saved to {output_path} ({len(records)} classes)")
+    return output_path
+
+
 def extract_contours(
     dem_path: Path,
     output_path: Path,

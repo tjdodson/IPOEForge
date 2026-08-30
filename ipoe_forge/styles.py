@@ -41,11 +41,78 @@ MOVEMENT_CLASS_QML = """<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM
     <rastershader>
       <colorrampshader colorRampType="EXACT" clip="0">
         <colorrampEntry value="0" label="Unrestricted" color="0,0,0,0"/>
-        <colorrampEntry value="1" label="Restricted" color="255,165,0,128"/>
-        <colorrampEntry value="2" label="Highly Restricted" color="255,0,0,160"/>
+        <colorrampEntry value="1" label="Restricted" color="0,128,0,128"/>
+        <colorrampEntry value="2" label="Severely Restricted" color="0,100,0,160"/>
       </colorrampshader>
     </rastershader>
   </rasterrenderer>
+</qgis>
+"""
+
+
+def _movement_vector_qml(zoom: int) -> str:
+    """Vectorized movement classification QML — ATP 2-01.3 MCOO compliant.
+
+    Green hatching per doctrine:
+    - 0 (Unrestricted): transparent fill, green border
+    - 1 (Restricted): green diagonal hatch, green border
+    - 2 (Severely Restricted): green cross-hatch, green border
+    """
+    spacing = _hatch_spacing(zoom)
+    border_width = max(0.3, 0.5 * _scale_factor(zoom))
+    return f"""<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis version="3.28.0">
+  <renderer-v2 type="categorizedSymbol" attr="class">
+    <categories>
+      <category value="0" label="Unrestricted" symbol="0"/>
+      <category value="1" label="Restricted" symbol="1"/>
+      <category value="2" label="Severely Restricted" symbol="2"/>
+    </categories>
+    <symbols>
+      <symbol type="fill" name="0" alpha="0">
+        <layer class="SimpleFill">
+          <prop v="no" k="style"/>
+          <prop v="{border_width}" k="width"/>
+          <prop v="0,128,0,255" k="color"/>
+          <prop v="solid" k="penstyle"/>
+        </layer>
+      </symbol>
+      <symbol type="fill" name="1" alpha="0.4">
+        <layer class="SimpleFill">
+          <prop v="no" k="style"/>
+          <prop v="{border_width}" k="width"/>
+          <prop v="0,128,0,255" k="color"/>
+          <prop v="solid" k="penstyle"/>
+        </layer>
+        <layer class="LinePatternFill">
+          <prop v="45" k="line_angle"/>
+          <prop v="{spacing}" k="line_spacing"/>
+          <prop v="1.5" k="line_width"/>
+          <prop v="0,128,0,200" k="line_color"/>
+        </layer>
+      </symbol>
+      <symbol type="fill" name="2" alpha="0.5">
+        <layer class="SimpleFill">
+          <prop v="no" k="style"/>
+          <prop v="{border_width}" k="width"/>
+          <prop v="0,100,0,255" k="color"/>
+          <prop v="solid" k="penstyle"/>
+        </layer>
+        <layer class="LinePatternFill">
+          <prop v="45" k="line_angle"/>
+          <prop v="{spacing}" k="line_spacing"/>
+          <prop v="1.5" k="line_width"/>
+          <prop v="0,100,0,200" k="line_color"/>
+        </layer>
+        <layer class="LinePatternFill">
+          <prop v="135" k="line_angle"/>
+          <prop v="{spacing}" k="line_spacing"/>
+          <prop v="1.5" k="line_width"/>
+          <prop v="0,100,0,200" k="line_color"/>
+        </layer>
+      </symbol>
+    </symbols>
+  </renderer-v2>
 </qgis>
 """
 
@@ -160,8 +227,11 @@ def generate_all_styles(output_dir: Path, zoom: int = 13) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     spacing = _hatch_spacing(zoom)
 
-    # Movement class (raster pseudocolor — no spacing needed)
+    # Movement class raster (fallback display)
     (output_dir / "movement_class.qml").write_text(MOVEMENT_CLASS_QML)
+
+    # Movement class vector (MCOO hatch patterns)
+    (output_dir / "movement_class_vec.qml").write_text(_movement_vector_qml(zoom))
 
     # Urban areas
     qml = URBAN_AREAS_QML.format(spacing=spacing)

@@ -1,11 +1,10 @@
-"""Async XYZ tile downloader with rate limiting and mosaic output."""
+"""Async XYZ tile downloader with rate limiting, batching, and persistent cache."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 import math
-import tempfile
 from pathlib import Path
 
 import httpx
@@ -21,28 +20,39 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CONCURRENCY = 8
 TILE_SIZE = 256
+DEFAULT_BATCH_SIZE = 100
+DEFAULT_BATCH_DELAY = 2.0  # seconds between batches
+CACHE_DIR = Path.home() / ".cache" / "ipoe" / "tiles"
 
 
 async def _fetch_tile(
     client: httpx.AsyncClient,
     url: str,
     coord: TileCoord,
-    output_dir: Path,
+    cache_path: Path,
     semaphore: asyncio.Semaphore,
+    retries: int = 3,
 ) -> Path | None:
-    """Download a single tile."""
-    tile_path = output_dir / f"{coord.z}_{coord.x}_{coord.y}.png"
-    if tile_path.exists():
-        return tile_path
+    """Download a single tile with retries, using persistent cache."""
+    if cache_path.exists() and cache_path.stat().st_size > 0:
+        return cache_path
 
     async with semaphore:
-        try:
-            resp = await client.get(url, timeout=15.0)
-            if resp.status_code == 200 and len(resp.content) > 0:
-                tile_path.write_bytes(resp.content)
-                return tile_path
-        except (httpx.TimeoutException, httpx.ConnectError) as e:
-            logger.debug(f"Failed to fetch tile {coord}: {e}")
+        for attempt in range(retries):
+            try:
+                resp = await client.get(url, timeout=20.0)
+                if resp.status_code == 200 and len(resp.content) > 0:
+                    cache_path.parent.mkdir(parents=True, exist_ok=True)
+                    cache_path.write_bytes(resp.content)
+                    return cache_path
+                if resp.status_code == 429:
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+            except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError) as e:
+                if attempt < retries - 1:
+                    await asyncio.sleep(1 + attempt)
+                else:
+                    logger.debug(f"Failed to fetch tile {coord}: {e}")
     return None
 
 
@@ -53,19 +63,43 @@ def _build_tile_url(source: TileSource, coord: TileCoord) -> str:
     return source.url_template.format(z=coord.z, x=coord.x, y=coord.y)
 
 
+def _tile_cache_path(source_name: str, zoom: int, coord: TileCoord) -> Path:
+    """Get the persistent cache path for a tile."""
+    return CACHE_DIR / source_name / str(zoom) / f"{coord.z}_{coord.x}_{coord.y}.png"
+
+
 async def download_tiles(
     source: TileSource,
     bbox: Bbox,
     zoom: int,
     output_dir: Path,
     concurrency: int = DEFAULT_CONCURRENCY,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    batch_delay: float = DEFAULT_BATCH_DELAY,
 ) -> list[Path]:
-    """Download all tiles for a bbox at a given zoom level."""
+    """Download all tiles for a bbox at a given zoom level.
+
+    Uses persistent cache and downloads in batches to avoid server overload.
+    """
     grid = TileGrid.from_bbox(bbox, zoom)
-    logger.info(f"Downloading {len(grid.tiles)} tiles from {source.name} at zoom {zoom}")
+    total = len(grid.tiles)
+    logger.info(f"Downloading {total} tiles from {source.name} at zoom {zoom}")
+
+    # Check how many are already cached
+    cached = sum(1 for c in grid.tiles if _tile_cache_path(source.name, zoom, c).exists())
+    to_download = total - cached
+    logger.info(f"  {cached} cached, {to_download} to download")
+
+    if to_download == 0:
+        # All cached — just return paths
+        output_dir.mkdir(parents=True, exist_ok=True)
+        return [_tile_cache_path(source.name, zoom, c) for c in grid.tiles]
 
     output_dir.mkdir(parents=True, exist_ok=True)
     semaphore = asyncio.Semaphore(concurrency)
+
+    downloaded: list[Path] = []
+    batches = [grid.tiles[i:i + batch_size] for i in range(0, total, batch_size)]
 
     async with httpx.AsyncClient(
         headers={
@@ -74,15 +108,31 @@ async def download_tiles(
         },
         follow_redirects=True,
     ) as client:
-        tasks = [
-            _fetch_tile(client, _build_tile_url(source, coord), coord, output_dir, semaphore)
-            for coord in grid.tiles
-        ]
-        results = await asyncio.gather(*tasks)
+        for batch_idx, batch in enumerate(batches):
+            tasks = [
+                _fetch_tile(
+                    client,
+                    _build_tile_url(source, coord),
+                    coord,
+                    _tile_cache_path(source.name, zoom, coord),
+                    semaphore,
+                )
+                for coord in batch
+            ]
+            results = await asyncio.gather(*tasks)
+            batch_ok = [p for p in results if p is not None]
+            downloaded.extend(batch_ok)
 
-    tile_paths = [p for p in results if p is not None]
-    logger.info(f"Downloaded {len(tile_paths)}/{len(grid.tiles)} tiles")
-    return tile_paths
+            done = min((batch_idx + 1) * batch_size, total)
+            pct = done / total * 100
+            logger.info(f"  batch {batch_idx + 1}/{len(batches)}: {done}/{total} ({pct:.0f}%)")
+
+            # Pause between batches to be kind to servers
+            if batch_idx < len(batches) - 1:
+                await asyncio.sleep(batch_delay)
+
+    logger.info(f"Downloaded {len(downloaded)}/{total} tiles")
+    return downloaded
 
 
 def mosaic_tiles(
@@ -169,11 +219,13 @@ async def download_and_mosaic(
     zoom: int,
     output_path: Path,
     concurrency: int = DEFAULT_CONCURRENCY,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    batch_delay: float = DEFAULT_BATCH_DELAY,
 ) -> Path:
-    """High-level: download tiles and produce a mosaicked GeoTIFF."""
-    with tempfile.TemporaryDirectory(prefix="ipoe_tiles_") as tmpdir:
-        tile_dir = Path(tmpdir) / "tiles"
-        tile_paths = await download_tiles(source, bbox, zoom, tile_dir, concurrency)
-        if not tile_paths:
-            raise RuntimeError(f"No tiles downloaded from {source.name}")
-        return mosaic_tiles(tile_paths, bbox, output_path, zoom)
+    """High-level: download tiles (with cache) and produce a mosaicked GeoTIFF."""
+    tile_paths = await download_tiles(
+        source, bbox, zoom, output_path.parent, concurrency, batch_size, batch_delay,
+    )
+    if not tile_paths:
+        raise RuntimeError(f"No tiles downloaded from {source.name}")
+    return mosaic_tiles(tile_paths, bbox, output_path, zoom)

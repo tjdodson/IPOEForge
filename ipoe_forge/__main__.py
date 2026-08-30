@@ -19,6 +19,7 @@ from .elevation import (
     compute_slope,
     download_dem,
     extract_contours,
+    vectorize_movement,
 )
 from .models import AuthMode, Bbox
 from .styles import generate_all_styles
@@ -132,6 +133,10 @@ def build(
             console.print("[cyan]Classifying movement...[/cyan]")
             movement_path = out_dir / f"{name}_movement.tif"
             classify_movement(slope_path, movement_path)
+
+            console.print("[cyan]Vectorizing movement classification...[/cyan]")
+            movement_vec_path = out_dir / f"{name}_movement_class.gpkg"
+            vectorize_movement(movement_path, movement_vec_path)
 
             if "contours" not in skip_set:
                 console.print("[cyan]Extracting contours...[/cyan]")

@@ -271,13 +271,23 @@ Per ATP 2-01.3 and standard military map symbology:
 | `movement` | Computed from slope | Unrestricted/Restricted/Highly Restricted (int8) | ✅ |
 | `vegetation` | Red/green from imagery | Spectral density index, float32 | ❌ Not started |
 
-### 6.2 Vector Layers — Terrain Analysis
+### 6.2 Vector Layers — Terrain Analysis (MCOO Components)
 
-| Layer Name | Geometry | Content | Status |
-|------------|----------|---------|--------|
-| `contours` | LineString | Contour lines with elevation attr | ✅ (GDAL wired, needs testing) |
-| `movement_class` | MultiPolygon | Hatch: none / single / double | ❌ Not started |
-| `urban_areas` | MultiPolygon | Built-up area boundaries | ❌ Not started |
+Each MCOO component is a **separate toggleable layer** in QGIS. Users can enable/disable individual components independently.
+
+| Layer Name | Geometry | Content | Color | Status |
+|------------|----------|---------|-------|--------|
+| `contours` | LineString | Contour lines with elevation attr | Brown | ✅ (GDAL wired) |
+| `movement_class` | MultiPolygon | Terrain mobility classification | Green hatch per ATP 2-01.3 | ✅ |
+| `urban_areas` | MultiPolygon | Built-up area boundaries | Black cross-hatch | ❌ Not started |
+| `avenues_of_approach` | LineString | Mounted/dismounted/air avenues | Blue (friendly) / Red (threat) | ❌ Not started |
+| `mobility_corridors` | Polygon | Restricted movement corridors | Black | ❌ Not started |
+| `key_terrain` | Polygon | Key terrain features | Purple | ❌ Not started |
+| `obstacles` | Polygon | Natural and man-made obstacles | Black | ❌ Not started |
+| `cover_concealment` | Polygon | Cover and concealment areas | — | ❌ Not started |
+| `observation_fire` | Polygon | Observation and fields of fire | — | ❌ Not started |
+| `landing_zones` | Point | LZ/DZ locations | — | ❌ Not started |
+| `bridge_classifications` | Point | Bridge load classifications | — | ❌ Not started |
 
 ### 6.3 Vector Layers — Transportation
 
@@ -427,13 +437,32 @@ All features must adapt to zoom level. The QML styles use QGIS scale-based visib
 | **Power lines** | hidden | visible | visible | visible |
 | **Barriers** | hidden | hidden | visible | visible |
 
-### 8.2 Movement Classification (Hatch Patterns)
+### 8.2 Movement Classification (Hatch Patterns) — ATP 2-01.3 MCOO
 
-| Class | Slope | Pattern | QML Description |
-|-------|-------|---------|-----------------|
-| Unrestricted | < 5° | No hatching | Transparent fill |
-| Restricted | 5–15° | Single diagonal hatch (45°) | 1.5px stroke, 30% opacity, gray |
-| Highly Restricted | > 15° | Cross-hatch (45° + 135°) | 1.5px stroke, 40% opacity, dark gray |
+Per ATP 2-01.3, all movement classification uses **green** symbology:
+
+| Class | Slope | Pattern | Color | Border |
+|-------|-------|---------|-------|--------|
+| Unrestricted | < 5° | No hatching | Transparent | Green border |
+| Restricted | 5–15° | Single diagonal hatch (45°) | Green | Green border |
+| Severely Restricted | > 15° | Cross-hatch (45° + 135°) | Dark green | Green border |
+
+Hatch spacing scales with zoom: `base_spacing * 2^(13 - zoom)`.
+
+The vectorized movement layer (`movement_class.gpkg`) renders proper hatch patterns. The raster fallback (`movement.class.tif`) uses pseudocolor.
+
+### MCOO Color Control Measures (ATP 2-01.3 Table 4-4)
+
+| Element | Color | Layer |
+|---------|-------|-------|
+| Avenue of Approach | Blue (friendly) / Black (neutral) / Red (threat) | `avenues_of_approach` |
+| Built-up Area | Black | `urban_areas` |
+| Hydrology | Blue | `hydro_water`, `hydro_rivers` |
+| Key Terrain | Purple | `key_terrain` |
+| Mobility Corridor | Black | `mobility_corridors` |
+| Obstacles (natural/man-made) | Black | `obstacles` |
+| Restricted Terrain | Green | `movement_class` (restricted) |
+| Severely Restricted Terrain | Green | `movement_class` (severely restricted) |
 
 ### 8.3 Urban Buildup (Black Cross-Hatch)
 
