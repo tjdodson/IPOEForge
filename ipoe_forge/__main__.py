@@ -329,6 +329,11 @@ def build(
     console.print(f"\n[green]Done: {out_dir}[/green]")
     console.print(f"[green]Open qgis_import/ and drag all files into QGIS ({linked} layers)[/green]")
 
+    # Final cleanup — GDAL writes .aux.xml after everything else
+    for pattern in ("*.aux.xml", ".DS_Store"):
+        for f in out_dir.rglob(pattern):
+            f.unlink()
+
     if any("failed" in v for v in status.values()):
         sys.exit(1)
 

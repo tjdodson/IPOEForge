@@ -80,7 +80,7 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
       <category value="2" label="Severely Restricted" symbol="2"/>
     </categories>
     <symbols>
-      <symbol type="fill" name="1" alpha="0.8">
+      <symbol type="fill" name="1" alpha="0.6">
         <layer class="SimpleFill">
           <prop v="no" k="style"/>
           <prop v="{border_width}" k="width"/>
@@ -90,11 +90,11 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
         <layer class="LinePatternFill">
           <prop v="45" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
-          <prop v="2" k="line_width"/>
-          <prop v="0,100,0,220" k="line_color"/>
+          <prop v="1" k="line_width"/>
+          <prop v="0,100,0,255" k="line_color"/>
         </layer>
       </symbol>
-      <symbol type="fill" name="2" alpha="0.8">
+      <symbol type="fill" name="2" alpha="0.65">
         <layer class="SimpleFill">
           <prop v="no" k="style"/>
           <prop v="{border_width}" k="width"/>
@@ -104,14 +104,14 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
         <layer class="LinePatternFill">
           <prop v="45" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
-          <prop v="2" k="line_width"/>
-          <prop v="0,80,0,220" k="line_color"/>
+          <prop v="1" k="line_width"/>
+          <prop v="0,80,0,255" k="line_color"/>
         </layer>
         <layer class="LinePatternFill">
           <prop v="135" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
-          <prop v="2" k="line_width"/>
-          <prop v="0,80,0,220" k="line_color"/>
+          <prop v="1" k="line_width"/>
+          <prop v="0,80,0,255" k="line_color"/>
         </layer>
       </symbol>
     </symbols>
