@@ -1,3 +1,22 @@
+---
+name: ipoe-forge
+description: Build IPOE map packages (basemap, imagery, DEM, terrain analysis) from MGRS coordinates via CLI
+version: 0.1.0
+author: Trevor Dodson
+tags:
+  - gis
+  - military
+  - terrain
+  - maps
+  - ipoe
+  - elevation
+  - qgis
+agents:
+  - opencode
+  - claude
+  - cursor
+---
+
 # IPOE Map Asset Builder
 
 Build IPOE (Intelligence Preparation of the Operational Environment) map packages from natural language requests. Downloads basemap tiles, satellite imagery, DEM elevation data, and computes terrain analysis layers. Outputs GeoTIFFs with QGIS styles ready for offline use.
