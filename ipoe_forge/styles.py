@@ -67,8 +67,8 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
 
     Green hatching per doctrine. Only restricted classes shown —
     unrestricted is implied by absence.
-    - 1 (Restricted): green diagonal hatch, dark green border
-    - 2 (Severely Restricted): green cross-hatch, dark green border
+    - 1 (Restricted): single diagonal green hatch, dark green border
+    - 2 (Severely Restricted): cross-hatch green, dark green border
     """
     spacing = _hatch_spacing(zoom, base=50.0, bbox_area_deg2=bbox_area_deg2)
     border_width = max(0.5, 1.0 * _scale_factor(zoom))
@@ -80,21 +80,7 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
       <category value="2" label="Severely Restricted" symbol="2"/>
     </categories>
     <symbols>
-      <symbol type="fill" name="1" alpha="0.35">
-        <layer class="SimpleFill">
-          <prop v="no" k="style"/>
-          <prop v="{border_width}" k="width"/>
-          <prop v="0,100,0,255" k="color"/>
-          <prop v="solid" k="penstyle"/>
-        </layer>
-        <layer class="LinePatternFill">
-          <prop v="45" k="line_angle"/>
-          <prop v="{spacing}" k="line_spacing"/>
-          <prop v="1.5" k="line_width"/>
-          <prop v="0,128,0,200" k="line_color"/>
-        </layer>
-      </symbol>
-      <symbol type="fill" name="2" alpha="0.45">
+      <symbol type="fill" name="1" alpha="0.8">
         <layer class="SimpleFill">
           <prop v="no" k="style"/>
           <prop v="{border_width}" k="width"/>
@@ -104,14 +90,28 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
         <layer class="LinePatternFill">
           <prop v="45" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
-          <prop v="1.5" k="line_width"/>
-          <prop v="0,100,0,200" k="line_color"/>
+          <prop v="2" k="line_width"/>
+          <prop v="0,100,0,220" k="line_color"/>
+        </layer>
+      </symbol>
+      <symbol type="fill" name="2" alpha="0.8">
+        <layer class="SimpleFill">
+          <prop v="no" k="style"/>
+          <prop v="{border_width}" k="width"/>
+          <prop v="0,60,0,255" k="color"/>
+          <prop v="solid" k="penstyle"/>
+        </layer>
+        <layer class="LinePatternFill">
+          <prop v="45" k="line_angle"/>
+          <prop v="{spacing}" k="line_spacing"/>
+          <prop v="2" k="line_width"/>
+          <prop v="0,80,0,220" k="line_color"/>
         </layer>
         <layer class="LinePatternFill">
           <prop v="135" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
-          <prop v="1.5" k="line_width"/>
-          <prop v="0,100,0,200" k="line_color"/>
+          <prop v="2" k="line_width"/>
+          <prop v="0,80,0,220" k="line_color"/>
         </layer>
       </symbol>
     </symbols>
