@@ -1,48 +1,88 @@
-# IPOEForge — Complete Specification v2.1
+# IPOEForge — Specification v3.0
 
 ## Purpose
 
-Automate the creation of IPOE map packages from a single CLI command. Define an MGRS bounding box, get a self-contained GeoPackage with every layer needed for terrain analysis, movement planning, and operational visualization — offline-capable for Army systems, with all symbology conforming to **MIL-STD-2525D / APP-6(D)** per **ATP 2-01.3**.
+Automate the creation of IPOE map packages from a single CLI command. Define an MGRS bounding box, get individual GeoTIFFs with QML styles for every layer needed for terrain analysis, movement planning, and operational visualization — offline-capable for Army systems, with all symbology conforming to **MIL-STD-2525D / APP-6(D)** per **ATP 2-01.3**.
 
 ---
 
 ## 1. Input Parameters
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `--bbox` | 2 MGRS strings | Yes | — | Top-left and bottom-right MGRS coordinates (4-digit precision, e.g. `18TWL8034 18TWN8834`). Defines the AOI by major Northing/Easting intersections (1km grid squares). |
-| `--name` | string | Yes | — | AOI identifier |
-| `--output` | path | No | `./{name}.gpkg` | Output GeoPackage path |
-| `--zoom` | int | No | 13 | Tile zoom 8–17 |
-| `--mode` | enum | No | `auto` | `auto` / `pki` / `public` |
-| `--layers` | enum | No | `all` | `all` / `topo` / `imagery` / `analysis` / `hydro` / `infra` |
-| `--dem-product` | enum | No | `SRTM1` | `SRTM1` (30m) / `SRTM3` (90m) |
-| `--contour-interval` | float | No | 20 | Meters |
-| `--concurrency` | int | No | 8 | Parallel tile downloads |
-| `--mgrs` | flag | No | false | Include MGRS grid |
-| `--vegetation` | flag | No | false | Vegetation density analysis |
-| `--hatch` | flag | No | false | Vectorize movement class with hatch patterns |
-| `--hillshade` | flag | No | false | Computed hillshade layer |
-| `--urban-hatch` | flag | No | false | Urban buildup black cross-hatch overlay |
-| `--symbology` | enum | No | `2525d` | `2525d` / `app6d` / `basic` — military symbology standard |
-| `--style-dir` | path | No | alongside output | QML style output directory |
-| `--skip` | list | No | — | Comma-separated layers to skip |
-| `--quiet` | flag | No | false | Suppress progress |
+| Parameter | Type | Required | Default | Status | Description |
+|-----------|------|----------|---------|--------|-------------|
+| `--bbox` | 2 MGRS strings | Yes | — | ✅ | Top-left and bottom-right MGRS coordinates (4-digit precision) |
+| `--name` | string | Yes | — | ✅ | AOI identifier |
+| `--output` | path | No | `outputs/{name}` | ✅ | Output directory (diverged from GPKG) |
+| `--zoom` | int | No | 13 | ✅ | Tile zoom 8–17 |
+| `--mode` | enum | No | `auto` | ✅ | `auto` / `pki` / `public` |
+| `--layers` | enum | No | `all` | ⚠️ | `all` / `topo` / `imagery` / `analysis` / `hydro` / `infra` (accepted but not wired) |
+| `--dem-product` | enum | No | `SRTM1` | ✅ | `SRTM1` (30m) / `SRTM3` (90m) |
+| `--contour-interval` | float | No | 20 | ✅ | Meters |
+| `--concurrency` | int | No | 8 | ✅ | Parallel tile downloads |
+| `--batch-size` | int | No | 100 | ✅ | Tiles per batch (new, for large areas) |
+| `--batch-delay` | float | No | 2.0 | ✅ | Seconds between batches (new) |
+| `--hillshade/--no-hillshade` | flag | No | false | ✅ | Computed hillshade layer |
+| `--skip` | list | No | — | ✅ | Comma-separated layers to skip |
+| `--quiet/--no-quiet` | flag | No | false | ✅ | Suppress progress |
+| `--mgrs` | flag | No | false | ❌ | MGRS grid — uses QGIS native instead |
+| `--vegetation` | flag | No | false | ❌ | Vegetation density analysis — not started |
+| `--hatch` | flag | No | false | ❌ | Movement vectorization — not started |
+| `--urban-hatch` | flag | No | false | ❌ | Urban buildup hatch — not started |
+| `--symbology` | enum | No | `2525d` | ❌ | Military symbology standard — not started |
+| `--style-dir` | path | No | alongside output | ❌ | Not needed (styles always output alongside) |
 
 ---
 
-## 2. Military Symbology Standard
+## 2. Output Format (Diverged from Original Spec)
+
+**Original spec:** Single GeoPackage with all layers merged.
+
+**Actual implementation:** Individual GeoTIFFs + QML styles in `outputs/{name}/`.
+
+Rationale: GPKG raster merging via sqlite3 was unreliable — corrupted layers. Individual GeoTIFFs are more robust, easier to debug, and work directly in QGIS.
+
+```
+outputs/{name}/
+├── {name}_basemap.tif       Topographic map tiles (RGB)
+├── {name}_imagery.tif       Satellite imagery (RGB)
+├── {name}_dem.tif           SRTM elevation (float32)
+├── {name}_slope.tif         Slope in degrees (float32)
+├── {name}_hillshade.tif     Shaded relief (float32)
+├── {name}_movement.tif      Military movement class (int8: 0/1/2)
+└── styles/
+    ├── basemap.qml
+    ├── imagery.qml
+    ├── dem.qml
+    ├── slope.qml
+    ├── hillshade.qml
+    ├── movement_class.qml
+    ├── roads.qml
+    └── urban_areas.qml
+```
+
+---
+
+## 3. Elevation Data (Diverged from Original Spec)
+
+**Original spec:** `elevation` Python library.
+
+**Actual implementation:** Direct SRTM HGT download from AWS Open Data (`elevation-tiles-prod/skadi/`).
+
+Rationale: The `elevation` library had dependency issues and unreliable merge behavior. Direct download is simpler and more controllable.
+
+---
+
+## 4. Military Symbology Standard
 
 All installation, unit, and facility symbols conform to **MIL-STD-2525D** (US) / **APP-6(D)** (NATO) as specified in **ATP 2-01.3**.
 
-### 2.1 Symbol Generation
+### 4.1 Symbol Generation
 
 - **Library**: `military-symbol` Python package (nwroyer/Python-Military-Symbols)
 - **Supports**: NATO APP-6(E) compliant SVG generation from SIDC codes or natural language
-- **Styles**: light, medium, dark, unfilled
-- **Usage**: Generate SVG icons for each installation/infrastructure feature, embed as attribute in vector layers
+- **Status**: Not implemented yet (Phase 2)
 
-### 2.2 SIDC Codes for IPOE-relevant Installations (Symbol Set 20 — Land Installation)
+### 4.2 SIDC Codes for IPOE-relevant Installations (Symbol Set 20 — Land Installation)
 
 | Feature | OSM Tag | SIDC | Description |
 |---------|---------|------|-------------|
@@ -63,7 +103,7 @@ All installation, unit, and facility symbols conform to **MIL-STD-2525D** (US) /
 | Tunnel | `tunnel=yes` | S2017000000 | Tunnel passage |
 | Checkpoint | `barrier=checkpoint` | S2020000000 | Control point |
 
-### 2.3 Urban Buildup Symbology
+### 4.3 Urban Buildup Symbology
 
 Per ATP 2-01.3 and standard military map symbology:
 - **Urban areas**: Black cross-hatch pattern (45° and 135° intersecting lines)
@@ -72,9 +112,9 @@ Per ATP 2-01.3 and standard military map symbology:
 
 ---
 
-## 3. Complete OSM Tag Matrix
+## 5. Complete OSM Tag Matrix
 
-### 3.1 Aviation
+### 5.1 Aviation
 
 | OSM Tag | Feature | Geometry | Military Relevance |
 |---------|---------|----------|-------------------|
@@ -85,7 +125,7 @@ Per ATP 2-01.3 and standard military map symbology:
 | `aeroway=runway` | Runway | Line | Surface, length, orientation |
 | `aeroway=taxiway` | Taxiway | Line | Airfield layout |
 
-### 3.2 Roads & Trails
+### 5.2 Roads & Trails
 
 | OSM Tag | Feature | Geometry | Classification |
 |---------|---------|----------|---------------|
@@ -103,7 +143,7 @@ Per ATP 2-01.3 and standard military map symbology:
 | `highway=steps` | Stairs | Line | Vertical movement |
 | `highway=service` | Service road | Line | Access road |
 
-### 3.3 Water / Hydrology
+### 5.3 Water / Hydrology
 
 | OSM Tag | Feature | Geometry | Military Relevance |
 |---------|---------|----------|-------------------|
@@ -122,7 +162,7 @@ Per ATP 2-01.3 and standard military map symbology:
 | `man_made=water_tower` | Water tower | Point | Landmark, water supply |
 | `man_made=water_works` | Water treatment | Polygon | Infrastructure |
 
-### 3.4 Infrastructure / Utilities
+### 5.4 Infrastructure / Utilities
 
 | OSM Tag | Feature | Geometry | Military Relevance |
 |---------|---------|----------|-------------------|
@@ -145,7 +185,7 @@ Per ATP 2-01.3 and standard military map symbology:
 | `barrier=gate` | Gate | Point | Controlled access |
 | `barrier=bollard` | Bollard | Point | Anti-vehicle |
 
-### 3.5 Buildings & Settlements
+### 5.5 Buildings & Settlements
 
 | OSM Tag | Feature | Geometry | Military Relevance |
 |---------|---------|----------|-------------------|
@@ -159,7 +199,7 @@ Per ATP 2-01.3 and standard military map symbology:
 | `building=warehouse` | Warehouse | Polygon | Storage, supply |
 | `building=dam` | Dam structure | Polygon | Water control |
 
-### 3.6 Places / Administration
+### 5.6 Places / Administration
 
 | OSM Tag | Feature | Geometry | Military Relevance |
 |---------|---------|----------|-------------------|
@@ -176,7 +216,7 @@ Per ATP 2-01.3 and standard military map symbology:
 | `admin_level=6` | County boundary | Polygon | County border |
 | `admin_level=8` | Municipal boundary | Polygon | City/town limit |
 
-### 3.7 Medical / Emergency
+### 5.7 Medical / Emergency
 
 | OSM Tag | Feature | Geometry |
 |---------|---------|----------|
@@ -187,7 +227,7 @@ Per ATP 2-01.3 and standard military map symbology:
 | `amenity=fire_station` | Fire station | Point/Polygon |
 | `emergency=ambulance_station` | Ambulance station | Point/Polygon |
 
-### 3.8 Religious / Cultural
+### 5.8 Religious / Cultural
 
 | OSM Tag | Feature | Geometry |
 |---------|---------|----------|
@@ -199,7 +239,7 @@ Per ATP 2-01.3 and standard military map symbology:
 | `building=hindu_temple` | Hindu temple | Polygon |
 | `amenity=monastery` | Monastery | Point/Polygon |
 
-### 3.9 Military / Defense
+### 5.9 Military / Defense
 
 | OSM Tag | Feature | Geometry | Notes |
 |---------|---------|----------|-------|
@@ -217,118 +257,90 @@ Per ATP 2-01.3 and standard military map symbology:
 
 ---
 
-## 4. Output Layers (Complete)
+## 6. Output Layers (Complete)
 
-### 4.1 Raster Layers
+### 6.1 Raster Layers
 
-| Layer Name | Source | Content | Transparency |
-|------------|--------|---------|-------------|
-| `basemap` | OpenTopoMap / MoW | Terrain + contour tiles mosaicked | opaque |
-| `imagery` | ESRI / MoW CIB | Satellite imagery mosaicked | opaque |
-| `dem` | SRTM 30m | Elevation GeoTIFF, float32 | opaque |
-| `hillshade` | Computed from DEM | Hillshade (az=315°, alt=45°) | 40% opacity |
-| `slope` | Computed from DEM | Slope in degrees, float32 | opaque |
-| `vegetation` | Red/green from imagery | Spectral density index, float32 | opaque |
+| Layer Name | Source | Content | Status |
+|------------|--------|---------|--------|
+| `basemap` | OpenTopoMap / ESRI | Terrain + contour tiles mosaicked | ✅ |
+| `imagery` | ESRI World Imagery | Satellite imagery mosaicked | ✅ |
+| `dem` | SRTM 30m | Elevation GeoTIFF, float32 | ✅ |
+| `hillshade` | Computed from DEM | Hillshade (az=315°, alt=45°) | ✅ |
+| `slope` | Computed from DEM | Slope in degrees, float32 | ✅ |
+| `movement` | Computed from slope | Unrestricted/Restricted/Highly Restricted (int8) | ✅ |
+| `vegetation` | Red/green from imagery | Spectral density index, float32 | ❌ Not started |
 
-### 4.2 Vector Layers — Terrain Analysis
+### 6.2 Vector Layers — Terrain Analysis
 
-| Layer Name | Geometry | Content | Symbology |
-|------------|----------|---------|-----------|
-| `movement_class` | MultiPolygon | Unrestricted / Restricted / Highly Restricted | Hatch: none / single / double |
-| `contours` | LineString | Contour lines with elevation attr | Brown, indexed 2x weight |
-| `urban_areas` | MultiPolygon | Built-up area boundaries | **Black cross-hatch** per ATP 2-01.3 |
+| Layer Name | Geometry | Content | Status |
+|------------|----------|---------|--------|
+| `contours` | LineString | Contour lines with elevation attr | ✅ (GDAL wired, needs testing) |
+| `movement_class` | MultiPolygon | Hatch: none / single / double | ❌ Not started |
+| `urban_areas` | MultiPolygon | Built-up area boundaries | ❌ Not started |
 
-### 4.3 Vector Layers — Transportation
+### 6.3 Vector Layers — Transportation
 
-| Layer Name | Geometry | Content | Symbology |
-|------------|----------|---------|-----------|
-| `roads` | LineString | All highway=* features | Classified by type (color + width) |
-| `trails` | LineString | path, footway, bridleway, steps | Dashed green/brown by type |
+| Layer Name | Geometry | Content | Status |
+|------------|----------|---------|--------|
+| `roads` | LineString | All highway=* features | ❌ Not started |
+| `trails` | LineString | path, footway, bridleway, steps | ❌ Not started |
 
-### 4.4 Vector Layers — Hydrology
+### 6.4 Vector Layers — Hydrology
 
-| Layer Name | Geometry | Content | Symbology |
-|------------|----------|---------|-----------|
-| `hydro_rivers` | LineString | Rivers, streams, canals, ditches | Blue, width by waterway type |
-| `hydro_water` | Polygon | Lakes, reservoirs, ponds | Solid blue fill |
-| `hydro_wetlands` | Polygon | Marshes, swamps, bogs | Blue stipple/wash |
-| `hydro_infra` | Point/Polygon | Dams, weirs, wells, water towers | Blue point symbols |
+| Layer Name | Geometry | Content | Status |
+|------------|----------|---------|--------|
+| `hydro_rivers` | LineString | Rivers, streams, canals, ditches | ❌ Not started |
+| `hydro_water` | Polygon | Lakes, reservoirs, ponds | ❌ Not started |
+| `hydro_wetlands` | Polygon | Marshes, swamps, bogs | ❌ Not started |
+| `hydro_infra` | Point/Polygon | Dams, weirs, wells, water towers | ❌ Not started |
 
-### 4.5 Vector Layers — Infrastructure
+### 6.5 Vector Layers — Infrastructure
 
-| Layer Name | Geometry | Content | Symbology |
-|------------|----------|---------|-----------|
-| `pipelines` | LineString | Gas, oil, water pipelines | Dashed, colored by substance |
-| `power_lines` | LineString | High-voltage transmission lines | Thin dashed, cross markers |
-| `bridges` | Polygon/Point | Bridge structures | Brown outline, label |
-| `tunnels` | LineString/Point | Tunnel entrances/exits | Dashed, entrance symbol |
-| `barriers` | LineString | Walls, fences, gates | Black dashed/solid by type |
-| `comms_towers` | Point | Communications towers | Triangle symbol |
-| `water_infra` | Point/Polygon | Water towers, treatment plants | Blue symbol |
+| Layer Name | Geometry | Content | Status |
+|------------|----------|---------|--------|
+| `pipelines` | LineString | Gas, oil, water pipelines | ❌ Not started |
+| `power_lines` | LineString | High-voltage transmission lines | ❌ Not started |
+| `bridges` | Polygon/Point | Bridge structures | ❌ Not started |
+| `tunnels` | LineString/Point | Tunnel entrances/exits | ❌ Not started |
+| `barriers` | LineString | Walls, fences, gates | ❌ Not started |
+| `comms_towers` | Point | Communications towers | ❌ Not started |
+| `water_infra` | Point/Polygon | Water towers, treatment plants | ❌ Not started |
 
-### 4.6 Vector Layers — Installations (Military Symbology)
+### 6.6 Vector Layers — Installations (Military Symbology)
 
-| Layer Name | Geometry | Content | Symbology |
-|------------|----------|---------|-----------|
-| `installations` | Point/Polygon | All military=* features | **MIL-STD-2525D SIDC symbols** via `military-symbol` lib |
-| `medical` | Point/Polygon | Hospitals, clinics, pharmacies | Red cross / medical symbol |
-| `religious` | Point/Polygon | Churches, mosques, temples, synagogues | Appropriate religious symbol |
-| `government` | Point/Polygon | Government buildings, embassies | Building symbol |
+| Layer Name | Geometry | Content | Status |
+|------------|----------|---------|--------|
+| `installations` | Point/Polygon | All military=* features | ❌ Not started |
+| `medical` | Point/Polygon | Hospitals, clinics, pharmacies | ❌ Not started |
+| `religious` | Point/Polygon | Churches, mosques, temples | ❌ Not started |
+| `government` | Point/Polygon | Government buildings, embassies | ❌ Not started |
 
-### 4.7 Vector Layers — Settlements & Places
+### 6.7 Vector Layers — Settlements & Places
 
-| Layer Name | Geometry | Content | Symbology |
-|------------|----------|---------|-----------|
-| `places` | Point | Cities, towns, villages, hamlets | Size-scaled dot + label |
-| `admin_boundaries` | LineString | Country, state, county borders | Dashed, weight by level |
+| Layer Name | Geometry | Content | Status |
+|------------|----------|---------|--------|
+| `places` | Point | Cities, towns, villages, hamlets | ❌ Not started |
+| `admin_boundaries` | LineString | Country, state, county borders | ❌ Not started |
 
-### 4.8 Vector Layers — Reference
+### 6.8 Vector Layers — Reference
 
-| Layer Name | Geometry | Content | Symbology |
-|------------|----------|---------|-----------|
-| `mgrs_grid` | LineString | 1km MGRS northing/easting grid lines | Thin gray, labeled at intersections |
-| `mgrs_labels` | Point | Northing/easting text labels at grid line intersections | Small gray text, offset from lines |
-| `graticule` | LineString | Lat/lon grid | Thin gray dashed |
+| Layer Name | Geometry | Content | Status |
+|------------|----------|---------|--------|
+| `mgrs_grid` | — | 1km MGRS grid | QGIS native (not a layer) |
 
-### 4.9 Composite Layers
+### 6.9 Composite Layers
 
-| Layer Name | Content |
-|------------|---------|
-| `composite_topo` | basemap + all vector layers + MGRS + graticule baked to raster |
-| `composite_imagery` | imagery + vegetation overlay + all vector layers baked to raster |
-
-### 4.10 Metadata
-
-| Layer Name | Content |
-|------------|---------|
-| `metadata` | Key-value table: all parameters, sources, timestamps, classification |
+| Layer Name | Content | Status |
+|------------|---------|--------|
+| `composite_topo` | basemap + all vector layers baked to raster | ❌ Not started |
+| `composite_imagery` | imagery + vegetation overlay baked to raster | ❌ Not started |
 
 ---
 
-## 5. Installation Symbol Details
+## 7. Overpass Query Strategy
 
-The `installations` layer will include SIDC-encoded attributes for each feature:
-
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `sidc` | text | 20-character SIDC code (e.g., `S2007000000`) |
-| `feature_type` | text | Human-readable type (e.g., "Military Base") |
-| `name` | text | Feature name from OSM |
-| `military_type` | text | OSM military=* value |
-| `svg_icon` | text | SVG symbol string (light style) for QGIS rendering |
-| `affiliation` | text | Unknown/Friend/Neutral (default: "Unknown" for installations) |
-
-The `military-symbol` library will be used at build time to generate SVG icons:
-```python
-import military_symbol
-svg = military_symbol.get_symbol_svg_string_from_name("Friendly Military Base")
-```
-
----
-
-## 6. Overpass Query Strategy
-
-Single combined query per bbox to minimize API calls:
+Single combined query per bbox to minimize API calls (not implemented yet):
 
 ```
 [out:json][timeout:120];
@@ -393,45 +405,9 @@ out skel qt;
 
 ---
 
-## 7. Output Directory Structure
-
-```
-co_ao_ipoe/
-├── co_ao_ipoe.gpkg           # Main GeoPackage (all layers)
-├── styles/
-│   ├── movement_class.qml    # Hatch symbology (none / single / double)
-│   ├── urban_areas.qml       # Black cross-hatch (ATP 2-01.3)
-│   ├── vegetation.qml        # Red→green density ramp
-│   ├── roads.qml             # Road classification colors
-│   ├── trails.qml            # Trail symbology
-│   ├── hydro_rivers.qml      # Blue lines
-│   ├── hydro_water.qml       # Blue fill
-│   ├── hydro_wetlands.qml    # Blue stipple
-│   ├── contours.qml          # Brown contour lines
-│   ├── installations.qml     # Military installation symbols
-│   ├── medical.qml           # Red cross
-│   ├── religious.qml         # Religious symbols
-│   ├── pipelines.qml         # Dashed, colored by substance
-│   ├── power_lines.qml       # Thin dashed with crosses
-│   ├── barriers.qml          # Wall/fence/gate symbology
-│   ├── comms_towers.qml      # Tower triangle
-│   ├── places.qml            # Settlement labels
-│   ├── admin_boundaries.qml  # Dashed borders
-│   ├── mgrs_grid.qml         # 1km grid lines with labels
-│   └── graticule.qml         # Grid styling
-├── symbols/                   # Generated SVG icons per SIDC
-│   ├── S2007000000.svg        # Military Base
-│   ├── S2001000000.svg        # Airport
-│   └── ...
-├── preview.html              # Leaflet.js interactive preview
-└── README.txt                # Layer descriptions, sources, symbology key
-```
-
----
-
 ## 8. Symbology Reference (ATP 2-01.3 / MIL-STD-2525D)
 
-### 8.0 Scale-Dependent Rendering
+### 8.1 Scale-Dependent Rendering
 
 All features must adapt to zoom level. The QML styles use QGIS scale-based visibility and data-defined overrides. Base scale factor: `sf = 2^(13 - zoom)` (zoom 13 = sf 1.0).
 
@@ -451,19 +427,7 @@ All features must adapt to zoom level. The QML styles use QGIS scale-based visib
 | **Power lines** | hidden | visible | visible | visible |
 | **Barriers** | hidden | hidden | visible | visible |
 
-**QML pattern for scale visibility:**
-```xml
-<rule scalemaxdenom="50000" scalemindenom="1">
-  <!-- features visible from 1:1 to 1:50,000 -->
-</rule>
-```
-
-**Hatch density scales with zoom:**
-- Hatch line spacing = `base_spacing * sf` where `base_spacing` is at zoom 13
-- At zoom 8: spacing × 8 (coarse hatch)
-- At zoom 17: spacing × 0.25 (fine hatch)
-
-### Movement Classification (Hatch Patterns)
+### 8.2 Movement Classification (Hatch Patterns)
 
 | Class | Slope | Pattern | QML Description |
 |-------|-------|---------|-----------------|
@@ -471,7 +435,7 @@ All features must adapt to zoom level. The QML styles use QGIS scale-based visib
 | Restricted | 5–15° | Single diagonal hatch (45°) | 1.5px stroke, 30% opacity, gray |
 | Highly Restricted | > 15° | Cross-hatch (45° + 135°) | 1.5px stroke, 40% opacity, dark gray |
 
-### Urban Buildup (Black Cross-Hatch)
+### 8.3 Urban Buildup (Black Cross-Hatch)
 
 Per ATP 2-01.3 and standard military mapping:
 - 45° and 135° intersecting black lines
@@ -479,7 +443,7 @@ Per ATP 2-01.3 and standard military mapping:
 - Applied to all `building=*` polygons and aggregated urban area polygons
 - Individual buildings at zoom ≥ 15 shown as solid black rectangles
 
-### Vegetation Density (Spectral)
+### 8.4 Vegetation Density (Spectral)
 
 | Index Range | Color | Description |
 |-------------|-------|-------------|
@@ -489,7 +453,7 @@ Per ATP 2-01.3 and standard military mapping:
 | 0.6–0.8 | Green | Dense vegetation |
 | 0.8–1.0 | Dark Green | Very dense canopy |
 
-### Road Classification
+### 8.5 Road Classification
 
 | OSM Type | Color | Width | Pattern |
 |----------|-------|-------|---------|
@@ -510,7 +474,7 @@ Per ATP 2-01.3 and standard military mapping:
 |-------|------------------|------------------------------|
 | Basemap | MoW topo REST | OpenTopoMap XYZ |
 | Imagery | MoW CIB/CI REST | ESRI World Imagery XYZ |
-| Elevation | GRiD DTED | SRTM 30m via `elevation` lib |
+| Elevation | GRiD DTED | SRTM 30m via AWS SKADi |
 | Hydrology | NGA GeoNames WMS | OSM Overpass |
 | Roads/Trails | NGA GeoNames WMS | OSM Overpass |
 | Place Names | NGA GeoNames REST | OSM Nominatim |
@@ -524,16 +488,15 @@ Per ATP 2-01.3 and standard military mapping:
 httpx>=0.27
 click>=8.1
 rich>=13.0
-requests>=2.31
 
 # Raster
 rasterio>=1.3
 numpy>=1.24
 Pillow>=10.0
-GDAL (system)         # gdal_contour, ogr2ogr
+GDAL (system)         # gdal_contour, gdalbuildvrt, gdal_translate
 
 # Elevation
-elevation>=1.1
+# Direct SRTM download from AWS (no Python elevation library)
 
 # Vector
 geopandas>=0.14
@@ -542,69 +505,74 @@ shapely>=2.0
 pyproj>=3.6
 
 # Military Symbology
-military-symbol>=1.0  # APP-6(D)/MIL-STD-2525D SVG generation
+military-symbol>=1.0  # APP-6(D)/MIL-STD-2525D SVG generation (not yet used)
 
-# Optional
-mgrs>=1.2             # MGRS grid
+# MGRS
+mgrs>=1.2             # MGRS coordinate conversion
 ```
 
 ---
 
 ## 11. Implementation Phases
 
-### Phase 1 — Core Infrastructure
+### Phase 1 — Core Infrastructure ✅
 - CLI, auth, DEM download, slope, hillshade
 - Tile download (topo + imagery) + mosaic
-- Basic GPKG assembly
+- Individual GeoTIFF output (diverged from GPKG)
 - Basic QML styles
+- Persistent tile cache
+- Batch downloading with retry/backoff
+- OpenCode skill for agent-driven usage
+- README, published to GitHub
 
-### Phase 2 — OSM Vector Layers
+### Phase 2 — OSM Vector Layers ❌ Next
 - Overpass query (all tags above)
 - Parse into classified GeoDataFrames
 - Roads, trails, hydrology, buildings, places, admin boundaries
 - Military installation symbol generation via `military-symbol`
-- Contour extraction
+- Contour extraction verification
 
-### Phase 3 — Analysis & Symbology
+### Phase 3 — Analysis & Symbology ❌
 - Vegetation density (red/green spectral)
 - Movement classification vectorization + hatch patterns
 - Urban buildup black cross-hatch (ATP 2-01.3)
 - All QML styles (military standard)
-- MGRS grid + graticule
 
-### Phase 4 — Composites & Polish
+### Phase 4 — Composites & Polish ❌
 - Composite topo/imagery baking
 - SVG symbol export
 - Preview HTML (Leaflet.js)
 - README with symbology legend
-- Error handling, retry, caching
+- Error handling, retry, caching polish
 
 ---
 
 ## 12. Project Structure
 
 ```
-ipoe_builder/
-├── ipoe_builder/
+IPOEForge/
+├── ipoe_forge/
 │   ├── __init__.py
 │   ├── __main__.py          # CLI entry point
 │   ├── config.py            # Data source configs, thresholds
 │   ├── models.py            # Bbox, AOIMetadata, dataclasses
 │   ├── auth.py              # PKI/cert detection + public fallback
 │   ├── tile_downloader.py   # XYZ tile fetching + mosaic
-│   ├── elevation.py         # DEM download, slope, contours
-│   ├── imagery.py           # Imagery download + vegetation analysis
-│   ├── vegetation.py        # Red/green spectral density
-│   ├── hydrology.py         # OSM water features
-│   ├── osm_features.py      # Roads, trails, buildings, places, infra
-│   ├── terrain_analysis.py  # Slope classification + hatch vectorization
-│   ├── urban_analysis.py    # Urban buildup detection + cross-hatch
-│   ├── installations.py     # Military symbol generation
-│   ├── geopackager.py       # Assemble all layers into .gpkg
-│   ├── mgrs_grid.py         # MGRS grid generation
-│   └── styles/              # QML style templates
+│   ├── elevation.py         # DEM download, slope, hillshade, movement
+│   ├── geopackager.py       # GPKG assembly (legacy, no longer used in main pipeline)
+│   ├── styles.py            # QML style generation
+│   ├── osm_features.py      # (not started) Roads, trails, buildings, places
+│   ├── hydrology.py         # (not started) OSM water features
+│   ├── vegetation.py        # (not started) Red/green spectral density
+│   ├── installations.py     # (not started) Military symbol generation
+│   └── mgrs_grid.py         # (deleted) MGRS grid — uses QGIS native instead
+├── skills/ipoe-forge/
+│   └── SKILL.md             # OpenCode skill for agent-driven usage
+├── tests/
+├── outputs/                 # Generated map packages
 ├── pyproject.toml
-├── requirements.txt
 ├── SPEC.md                  # This file
-└── README.md
+├── README.md
+├── CONTRIBUTING.md
+└── AGENTS.md
 ```
