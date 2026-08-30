@@ -18,9 +18,15 @@ def _hatch_spacing(zoom: int, base: float = 10.0, bbox_area_deg2: float = 1.0) -
 
     A 1km² AOI gets tight hatching. A state-wide build gets wide hatching
     so the basemap stays visible underneath.
+
+    Rules of thumb at zoom 13:
+      - 1km² (0.01°×0.01°) → base spacing
+      - 100km² (0.1°×0.1°) → 3× base
+      - 10,000km² (1°×1°)  → 10× base
     """
     spacing = base * _scale_factor(zoom)
-    area_factor = max(1.0, bbox_area_deg2 ** 0.25)
+    # area^0.3 gives gentle but meaningful scaling
+    area_factor = max(1.0, bbox_area_deg2 ** 0.3)
     return spacing * area_factor
 
 
@@ -66,7 +72,7 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
 
     Hatch spacing auto-scales with zoom and AOI size.
     """
-    spacing = _hatch_spacing(zoom, base=30.0, bbox_area_deg2=bbox_area_deg2)
+    spacing = _hatch_spacing(zoom, base=50.0, bbox_area_deg2=bbox_area_deg2)
     border_width = max(0.3, 0.5 * _scale_factor(zoom))
     return f"""<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
 <qgis version="3.28.0">
@@ -84,7 +90,7 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
           <prop v="0,0,0,0" k="color"/>
         </layer>
       </symbol>
-      <symbol type="fill" name="1" alpha="0.25">
+      <symbol type="fill" name="1" alpha="0.15">
         <layer class="SimpleFill">
           <prop v="no" k="style"/>
           <prop v="{border_width}" k="width"/>
@@ -95,10 +101,10 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
           <prop v="45" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
           <prop v="1" k="line_width"/>
-          <prop v="0,128,0,180" k="line_color"/>
+          <prop v="0,128,0,120" k="line_color"/>
         </layer>
       </symbol>
-      <symbol type="fill" name="2" alpha="0.35">
+      <symbol type="fill" name="2" alpha="0.2">
         <layer class="SimpleFill">
           <prop v="no" k="style"/>
           <prop v="{border_width}" k="width"/>
@@ -109,13 +115,13 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
           <prop v="45" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
           <prop v="1" k="line_width"/>
-          <prop v="0,100,0,180" k="line_color"/>
+          <prop v="0,100,0,120" k="line_color"/>
         </layer>
         <layer class="LinePatternFill">
           <prop v="135" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
           <prop v="1" k="line_width"/>
-          <prop v="0,100,0,180" k="line_color"/>
+          <prop v="0,100,0,120" k="line_color"/>
         </layer>
       </symbol>
     </symbols>
