@@ -1,0 +1,126 @@
+<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis version="3.28.0" projectname="pohang_korea">
+  <title>pohang_korea</title>
+  <projectlayers>
+    <projectlayer type="raster" geometry="Raster" geometrytypes="" polylayer="" pointlayer="" extent="0,0,0,0" crs="EPSG:4326" rotations="" scales="" oacfeatures="">
+      <layername>dem</layername>
+      <datasource>./pohang_korea_dem.tif</datasource>
+      <provider encoding="utf-8">gdal</provider>
+      <stylecategories>
+        <maplayerstylecategory draw="1" si="0" color="255,128,0,255" label="dem">
+          <styles/>
+          <style>dem</style>
+        </maplayerstylecategory>
+      </stylecategories>
+      <customproperties/>
+      <blendmode>0</blendmode>
+      <opacity>1</opacity>
+      <singlebandgray grayBand="1" gradient="BlackToWhite"/>
+            <maplayer-style>
+              <style>./styles/dem.qml</style>
+              <selected>0</selected>
+            </maplayer-style>
+    </projectlayer>
+    <projectlayer type="raster" geometry="Raster" geometrytypes="" polylayer="" pointlayer="" extent="0,0,0,0" crs="EPSG:4326" rotations="" scales="" oacfeatures="">
+      <layername>slope</layername>
+      <datasource>./pohang_korea_slope.tif</datasource>
+      <provider encoding="utf-8">gdal</provider>
+      <stylecategories>
+        <maplayerstylecategory draw="1" si="0" color="255,128,0,255" label="slope">
+          <styles/>
+          <style>slope</style>
+        </maplayerstylecategory>
+      </stylecategories>
+      <customproperties/>
+      <blendmode>0</blendmode>
+      <opacity>1</opacity>
+      <singlebandgray grayBand="1" gradient="BlackToWhite"/>
+            <maplayer-style>
+              <style>./styles/slope.qml</style>
+              <selected>0</selected>
+            </maplayer-style>
+    </projectlayer>
+    <projectlayer type="raster" geometry="Raster" geometrytypes="" polylayer="" pointlayer="" extent="0,0,0,0" crs="EPSG:4326" rotations="" scales="" oacfeatures="">
+      <layername>hillshade</layername>
+      <datasource>./pohang_korea_hillshade.tif</datasource>
+      <provider encoding="utf-8">gdal</provider>
+      <stylecategories>
+        <maplayerstylecategory draw="1" si="0" color="255,128,0,255" label="hillshade">
+          <styles/>
+          <style>hillshade</style>
+        </maplayerstylecategory>
+      </stylecategories>
+      <customproperties/>
+      <blendmode>0</blendmode>
+      <opacity>1</opacity>
+      <singlebandgray grayBand="1" gradient="BlackToWhite"/>
+            <maplayer-style>
+              <style>./styles/hillshade.qml</style>
+              <selected>0</selected>
+            </maplayer-style>
+    </projectlayer>
+    <projectlayer type="raster" geometry="Raster" geometrytypes="" polylayer="" pointlayer="" extent="0,0,0,0" crs="EPSG:4326" rotations="" scales="" oacfeatures="">
+      <layername>movement_class</layername>
+      <datasource>./pohang_korea_movement.tif</datasource>
+      <provider encoding="utf-8">gdal</provider>
+      <stylecategories>
+        <maplayerstylecategory draw="1" si="0" color="255,128,0,255" label="movement_class">
+          <styles/>
+          <style>movement_class</style>
+        </maplayerstylecategory>
+      </stylecategories>
+      <customproperties/>
+      <blendmode>0</blendmode>
+      <opacity>1</opacity>
+      <singlebandgray grayBand="1" gradient="BlackToWhite"/>
+            <maplayer-style>
+              <style>./styles/movement_class.qml</style>
+              <selected>0</selected>
+            </maplayer-style>
+    </projectlayer>
+    <projectlayer type="raster" geometry="Raster" geometrytypes="" polylayer="" pointlayer="" extent="0,0,0,0" crs="EPSG:4326" rotations="" scales="" oacfeatures="">
+      <layername>basemap</layername>
+      <datasource>./pohang_korea_basemap.tif</datasource>
+      <provider encoding="utf-8">gdal</provider>
+      <stylecategories>
+        <maplayerstylecategory draw="1" si="0" color="255,128,0,255" label="basemap">
+          <styles/>
+          <style>basemap</style>
+        </maplayerstylecategory>
+      </stylecategories>
+      <customproperties/>
+      <blendmode>0</blendmode>
+      <opacity>1</opacity>
+      <singlebandgray grayBand="1" gradient="BlackToWhite"/>
+            <maplayer-style>
+              <style>./styles/basemap.qml</style>
+              <selected>0</selected>
+            </maplayer-style>
+    </projectlayer>
+    <projectlayer type="raster" geometry="Raster" geometrytypes="" polylayer="" pointlayer="" extent="0,0,0,0" crs="EPSG:4326" rotations="" scales="" oacfeatures="">
+      <layername>imagery</layername>
+      <datasource>./pohang_korea_imagery.tif</datasource>
+      <provider encoding="utf-8">gdal</provider>
+      <stylecategories>
+        <maplayerstylecategory draw="1" si="0" color="255,128,0,255" label="imagery">
+          <styles/>
+          <style>imagery</style>
+        </maplayerstylecategory>
+      </stylecategories>
+      <customproperties/>
+      <blendmode>0</blendmode>
+      <opacity>1</opacity>
+      <singlebandgray grayBand="1" gradient="BlackToWhite"/>
+            <maplayer-style>
+              <style>./styles/imagery.qml</style>
+              <selected>0</selected>
+            </maplayer-style>
+    </projectlayer>
+  </projectlayers>
+  <layers/>
+  <mapcanvas rotation="0" name="mapcanvas">
+    <extent xmax="130" ymax="37" xmin="128" ymin="35"/>
+    <layers/>
+    < CRS>EPSG:4326</CRS>
+  </mapcanvas>
+</qgis>
