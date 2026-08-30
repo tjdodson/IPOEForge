@@ -67,9 +67,10 @@ ELEVATION = {
 # --- OSM Overpass ---
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
-# --- Terrain classification thresholds (Army movement standards) ---
+# --- Terrain classification thresholds (ATP 2-01.3 / TC 7-100.2) ---
+# Slope percentage → degrees: 30% ≈ 16.7°, 45% ≈ 24.2°
 SLOPE_THRESHOLDS = {
-    "unrestricted_max": 5.0,
-    "restricted_max": 15.0,
-    "highly_restricted_min": 15.0,
+    "unrestricted_max_deg": 16.7,   # < 30% slope
+    "restricted_max_deg": 24.2,     # 30-45% slope
+    "severely_restricted_min_deg": 24.2,  # > 45% slope
 }

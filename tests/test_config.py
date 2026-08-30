@@ -22,5 +22,5 @@ def test_tile_source_url_template():
 
 
 def test_slope_thresholds_ordering():
-    assert SLOPE_THRESHOLDS["unrestricted_max"] < SLOPE_THRESHOLDS["restricted_max"]
-    assert SLOPE_THRESHOLDS["restricted_max"] == SLOPE_THRESHOLDS["highly_restricted_min"]
+    assert SLOPE_THRESHOLDS["unrestricted_max_deg"] < SLOPE_THRESHOLDS["restricted_max_deg"]
+    assert SLOPE_THRESHOLDS["restricted_max_deg"] == SLOPE_THRESHOLDS["severely_restricted_min_deg"]
