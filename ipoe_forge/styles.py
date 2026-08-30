@@ -65,46 +65,22 @@ MOVEMENT_CLASS_QML = """<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM
 def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
     """Vectorized movement classification QML — ATP 2-01.3 MCOO compliant.
 
-    Green hatching per doctrine:
-    - 0 (Unrestricted): transparent, no fill/border
-    - 1 (Restricted): green diagonal hatch, green border
-    - 2 (Severely Restricted): green cross-hatch, green border
-
-    Hatch spacing auto-scales with zoom and AOI size.
+    Green hatching per doctrine. Only restricted classes shown —
+    unrestricted is implied by absence.
+    - 1 (Restricted): green diagonal hatch, dark green border
+    - 2 (Severely Restricted): green cross-hatch, dark green border
     """
     spacing = _hatch_spacing(zoom, base=50.0, bbox_area_deg2=bbox_area_deg2)
-    border_width = max(0.3, 0.5 * _scale_factor(zoom))
+    border_width = max(0.5, 1.0 * _scale_factor(zoom))
     return f"""<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
 <qgis version="3.28.0">
   <renderer-v2 type="categorizedSymbol" attr="class">
     <categories>
-      <category value="0" label="Unrestricted" symbol="0"/>
       <category value="1" label="Restricted" symbol="1"/>
       <category value="2" label="Severely Restricted" symbol="2"/>
     </categories>
     <symbols>
-      <symbol type="fill" name="0" alpha="0">
-        <layer class="SimpleFill">
-          <prop v="no" k="style"/>
-          <prop v="0" k="width"/>
-          <prop v="0,0,0,0" k="color"/>
-        </layer>
-      </symbol>
-      <symbol type="fill" name="1" alpha="0.15">
-        <layer class="SimpleFill">
-          <prop v="no" k="style"/>
-          <prop v="{border_width}" k="width"/>
-          <prop v="0,128,0,255" k="color"/>
-          <prop v="solid" k="penstyle"/>
-        </layer>
-        <layer class="LinePatternFill">
-          <prop v="45" k="line_angle"/>
-          <prop v="{spacing}" k="line_spacing"/>
-          <prop v="1" k="line_width"/>
-          <prop v="0,128,0,120" k="line_color"/>
-        </layer>
-      </symbol>
-      <symbol type="fill" name="2" alpha="0.2">
+      <symbol type="fill" name="1" alpha="0.35">
         <layer class="SimpleFill">
           <prop v="no" k="style"/>
           <prop v="{border_width}" k="width"/>
@@ -114,14 +90,28 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
         <layer class="LinePatternFill">
           <prop v="45" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
-          <prop v="1" k="line_width"/>
-          <prop v="0,100,0,120" k="line_color"/>
+          <prop v="1.5" k="line_width"/>
+          <prop v="0,128,0,200" k="line_color"/>
+        </layer>
+      </symbol>
+      <symbol type="fill" name="2" alpha="0.45">
+        <layer class="SimpleFill">
+          <prop v="no" k="style"/>
+          <prop v="{border_width}" k="width"/>
+          <prop v="0,80,0,255" k="color"/>
+          <prop v="solid" k="penstyle"/>
+        </layer>
+        <layer class="LinePatternFill">
+          <prop v="45" k="line_angle"/>
+          <prop v="{spacing}" k="line_spacing"/>
+          <prop v="1.5" k="line_width"/>
+          <prop v="0,100,0,200" k="line_color"/>
         </layer>
         <layer class="LinePatternFill">
           <prop v="135" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
-          <prop v="1" k="line_width"/>
-          <prop v="0,100,0,120" k="line_color"/>
+          <prop v="1.5" k="line_width"/>
+          <prop v="0,100,0,200" k="line_color"/>
         </layer>
       </symbol>
     </symbols>
@@ -235,8 +225,18 @@ def _roads_qml(zoom: int) -> str:
 """
 
 
-def generate_all_styles(output_dir: Path, zoom: int = 13, bbox_area_deg2: float = 1.0) -> None:
-    """Generate all QML style files for the given zoom level."""
+def generate_all_styles(
+    output_dir: Path,
+    zoom: int = 13,
+    bbox_area_deg2: float = 1.0,
+    layer_prefix: str = "",
+) -> None:
+    """Generate all QML style files for the given zoom level.
+
+    Writes styles to output_dir/styles/ for organization.
+    Also writes matching QML files next to layers for QGIS auto-apply.
+    layer_prefix is prepended to auto-apply filenames (e.g. 'pohang_korea_').
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
     spacing = _hatch_spacing(zoom, bbox_area_deg2=bbox_area_deg2)
 
@@ -263,6 +263,22 @@ def generate_all_styles(output_dir: Path, zoom: int = 13, bbox_area_deg2: float 
 
     count = len(list(output_dir.glob("*.qml")))
     logger.info(f"Generated {count} QML styles in {output_dir}")
+
+    # Auto-apply: write QML files next to layer files with matching names
+    if layer_prefix and output_dir.parent:
+        parent = output_dir.parent
+        auto_apply = {
+            f"{layer_prefix}movement_class_vec.qml": _movement_vector_qml(zoom, bbox_area_deg2),
+            f"{layer_prefix}movement_class.qml": MOVEMENT_CLASS_QML,
+            f"{layer_prefix}slope.qml": _raster_gray_qml("slope"),
+            f"{layer_prefix}hillshade.qml": _raster_gray_qml("hillshade"),
+            f"{layer_prefix}dem.qml": _raster_gray_qml("dem"),
+            f"{layer_prefix}basemap.qml": _rgb_raster_qml("basemap"),
+            f"{layer_prefix}imagery.qml": _rgb_raster_qml("imagery"),
+        }
+        for fname, content in auto_apply.items():
+            (parent / fname).write_text(content)
+        logger.info(f"Wrote {len(auto_apply)} auto-apply QML styles to {parent}")
 
 
 def _raster_gray_qml(layer_name: str) -> str:

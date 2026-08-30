@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ipoe-forge"
-version = "0.1.0"
+version = "0.1.1"
 description = "Automated IPOE map asset builder — downloads DEM, imagery, basemap tiles, hydrology, and terrain analysis into a portable GeoPackage."
 readme = "README.md"
 license = {text = "MIT"}
@@ -22,6 +22,7 @@ dependencies = [
     "mgrs>=1.2",
     "military-symbol>=1.0",
     "Pillow>=10.0",
+    "scipy>=1.11",
 ]
 
 [project.optional-dependencies]

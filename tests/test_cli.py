@@ -9,7 +9,8 @@ def test_cli_version():
     runner = CliRunner()
     result = runner.invoke(cli, ["--version"])
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    from ipoe_forge import __version__
+    assert __version__ in result.output
 
 
 def test_build_requires_bbox():

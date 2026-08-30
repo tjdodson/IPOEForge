@@ -218,15 +218,21 @@ def classify_movement(
 def vectorize_movement(
     movement_path: Path,
     output_path: Path,
-    simplify_tolerance: float = 0.0001,
+    smooth_radius: int = 3,
+    simplify_tolerance: float = 0.0002,
 ) -> Path:
     """Convert movement classification raster to vector polygons.
 
-    Produces a GPKG with a 'class' attribute (0=unrestricted, 1=restricted,
-    2=severely restricted) suitable for hatch pattern rendering in QGIS.
+    Applies morphological closing to fill gaps and produce cohesive blobs,
+    then opening to remove isolated pixels. Only restricted (1) and
+    severely restricted (2) are output — unrestricted is implied by absence.
+
+    smooth_radius: morphological structuring element radius in pixels.
+    simplify_tolerance: polygon simplification tolerance in CRS units.
     """
     import geopandas as gpd
     from rasterio.features import shapes
+    from scipy.ndimage import binary_closing, binary_opening
     from shapely.geometry import shape
     from shapely.ops import unary_union
 
@@ -236,12 +242,21 @@ def vectorize_movement(
         data = src.read(1)
         transform = src.transform
 
-        # Polygonize each class separately, then merge to reduce vertex count
+        # Morphological smoothing — closing fills gaps, opening removes speckle
+        struct = np.ones((smooth_radius * 2 + 1, smooth_radius * 2 + 1))
+
         classes = {}
-        for value in [0, 1, 2]:
+        for value in [1, 2]:
             mask = data == value
             if not mask.any():
                 continue
+            # Close to fill small gaps within restricted areas
+            mask = binary_closing(mask, structure=struct, iterations=2)
+            # Open to remove isolated pixels (noise)
+            mask = binary_opening(mask, structure=struct, iterations=1)
+            if not mask.any():
+                continue
+
             polys = []
             for geom, val in shapes(data.astype(np.int16), mask=mask, transform=transform):
                 if val == value:
@@ -252,9 +267,9 @@ def vectorize_movement(
                     merged = merged.simplify(simplify_tolerance, preserve_topology=True)
                 classes[value] = merged
 
-    # Build GeoDataFrame
+    # Build GeoDataFrame — only restricted classes
     records = []
-    labels = {0: "Unrestricted", 1: "Restricted", 2: "Severely Restricted"}
+    labels = {1: "Restricted", 2: "Severely Restricted"}
     for value, geom in classes.items():
         records.append({"class": value, "label": labels[value], "geometry": geom})
 

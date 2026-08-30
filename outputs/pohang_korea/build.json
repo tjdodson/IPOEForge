@@ -1,6 +1,6 @@
 {
-  "ipoe_version": "0.1.0",
-  "generated_at": "2026-08-30T17:26:17.239963+00:00",
+  "ipoe_version": "0.1.1",
+  "generated_at": "2026-08-30T18:24:10.021249+00:00",
   "aoi": {
     "name": "pohang_korea",
     "mgrs_bbox": [
@@ -19,7 +19,9 @@
     "mode": "public",
     "dem_product": "SRTM1",
     "contour_interval_m": 20.0,
-    "hillshade": true
+    "hillshade": true,
+    "unrestricted_max_deg": 16.7,
+    "restricted_max_deg": 24.2
   },
   "sources": {
     "topo": {
@@ -56,7 +58,7 @@
       "format": "tif"
     },
     "pohang_korea_movement.tif": {
-      "size_bytes": 112768,
+      "size_bytes": 75245,
       "format": "tif"
     },
     "pohang_korea_movement_class.gpkg": {

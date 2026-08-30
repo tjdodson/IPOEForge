@@ -277,7 +277,7 @@ def build(
         # ── Styles ──
         style_path = out_dir / "styles"
         t = progress.add_task("Generating QML styles", total=1)
-        generate_all_styles(style_path, zoom, bbox_area_deg2=bbox_area)
+        generate_all_styles(style_path, zoom, bbox_area_deg2=bbox_area, layer_prefix=f"{name}_")
         progress.update(t, completed=1)
         progress.update(t, description="[green]Styles done")
 
