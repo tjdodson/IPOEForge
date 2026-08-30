@@ -105,13 +105,13 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
         <layer class="LinePatternFill">
           <prop v="45" k="line_angle"/>
           <prop v="{cross_spacing}" k="line_spacing"/>
-          <prop v="2" k="line_width"/>
+          <prop v="1.5" k="line_width"/>
           <prop v="0,100,0,255" k="line_color"/>
         </layer>
         <layer class="LinePatternFill">
           <prop v="135" k="line_angle"/>
           <prop v="{cross_spacing}" k="line_spacing"/>
-          <prop v="2" k="line_width"/>
+          <prop v="1.5" k="line_width"/>
           <prop v="0,100,0,255" k="line_color"/>
         </layer>
       </symbol>
