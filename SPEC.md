@@ -280,14 +280,14 @@ Each MCOO component is a **separate toggleable layer** in QGIS. Users can enable
 | `contours` | LineString | Contour lines with elevation attr | Brown | ✅ (GDAL wired) |
 | `movement_class` | MultiPolygon | Terrain mobility classification | Green hatch per ATP 2-01.3 | ✅ |
 | `urban_areas` | MultiPolygon | Built-up area boundaries | Black cross-hatch | ❌ Not started |
-| `avenues_of_approach` | LineString | Mounted/dismounted/air avenues | Blue (friendly) / Red (threat) | ❌ Not started |
-| `mobility_corridors` | Polygon | Restricted movement corridors | Black | ❌ Not started |
+| `mobility_corridors` | Polygon | Relatively obstacle-free terrain where force is canalized | Black | ❌ Not started |
 | `key_terrain_candidates` | Point | Hilltops, bridges, canalizing terrain | Purple (off by default) | ❌ Not started |
 | `obstacles` | Polygon | Natural and man-made obstacles | Black | ❌ Not started |
 | `cover_concealment` | Polygon | Cover and concealment areas | — | ❌ Not started |
 | `observation_fire` | Polygon | Observation and fields of fire | — | ❌ Not started |
 | `landing_zones` | Point | LZ/DZ locations | — | ❌ Not started |
 | `bridge_classifications` | Point | Bridge load classifications | — | ❌ Not started |
+| `avenues_of_approach` | LineString | Mounted/dismounted/air avenues | Blue/Red | **Analyst-placed** |
 
 ### 6.3 Vector Layers — Transportation
 
@@ -455,17 +455,19 @@ The vectorized movement layer (`movement_class.gpkg`) renders proper hatch patte
 
 | Element | Color | Layer | Auto-generated? |
 |---------|-------|-------|----------------|
-| Avenue of Approach | Blue (friendly) / Black (neutral) / Red (threat) | `avenues_of_approach` | Yes |
+| Avenue of Approach | Blue (friendly) / Black (neutral) / Red (threat) | Analyst-placed | **No** — requires BLUFOR/REDFOR disposition and mission context |
 | Built-up Area | Black | `urban_areas` | Yes |
 | Hydrology | Blue | `hydro_water`, `hydro_rivers` | Yes |
 | Key Terrain | Purple circle with K | Analyst-placed | **No** — requires commander decision |
 | Key Terrain Candidates | Purple | `key_terrain_candidates` | Yes (off by default) |
-| Mobility Corridor | Black | `mobility_corridors` | Yes |
+| Mobility Corridor | Black | `mobility_corridors` | Yes — terrain-derived (obstacle-free terrain where force is canalized) |
 | Obstacles (natural/man-made) | Black | `obstacles` | Yes |
 | Restricted Terrain | Green | `movement_class` (restricted) | Yes |
 | Severely Restricted Terrain | Green | `movement_class` (severely restricted) | Yes |
 
 **Key Terrain Note:** The purple K symbol is a *commander's decision* — terrain worth dedicating combat power to. If everything is key terrain, nothing is. The `key_terrain_candidates` layer auto-detects hilltops, bridges, and canalizing terrain as potential candidates, but is **off by default**. Analysts toggle it on for review, then manually place the K symbol where warranted.
+
+**Avenues of Approach Note:** AAs depend on BLUFOR posture (offense/defense), REDFOR disposition, and mission — they are **analyst-placed**, not auto-generated. Mobility corridors (terrain-derived) are auto-detectable and feed into AA identification, but the AA itself is an analytical product.
 
 ### 8.3 Urban Buildup (Black Cross-Hatch)
 
