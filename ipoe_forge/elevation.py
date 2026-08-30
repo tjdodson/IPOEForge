@@ -218,8 +218,8 @@ def classify_movement(
 def vectorize_movement(
     movement_path: Path,
     output_path: Path,
-    smooth_radius: int = 5,
-    simplify_tolerance: float = 0.0003,
+    smooth_radius: int = 7,
+    simplify_tolerance: float = 0.0005,
 ) -> Path:
     """Convert movement classification raster to vector polygons.
 
@@ -250,9 +250,9 @@ def vectorize_movement(
             mask = data == value
             if not mask.any():
                 continue
-            # Close aggressively to fill gaps within restricted areas
-            mask = binary_closing(mask, structure=struct, iterations=3)
-            # Open to remove isolated pixels (noise)
+            # Aggressive closing to merge nearby patches into cohesive areas
+            mask = binary_closing(mask, structure=struct, iterations=4)
+            # Opening to remove isolated pixels
             mask = binary_opening(mask, structure=struct, iterations=2)
             if not mask.any():
                 continue

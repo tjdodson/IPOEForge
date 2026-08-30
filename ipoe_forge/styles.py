@@ -68,9 +68,10 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
     Green hatching per doctrine. Only restricted classes shown —
     unrestricted is implied by absence.
     - 1 (Restricted): single diagonal green hatch, dark green border
-    - 2 (Severely Restricted): cross-hatch green, dark green border
+    - 2 (Severely Restricted): cross-hatch green (denser), dark green border
     """
     spacing = _hatch_spacing(zoom, base=50.0, bbox_area_deg2=bbox_area_deg2)
+    cross_spacing = max(15, spacing * 0.6)
     border_width = max(0.5, 1.0 * _scale_factor(zoom))
     return f"""<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
 <qgis version="3.28.0">
@@ -90,8 +91,8 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
         <layer class="LinePatternFill">
           <prop v="45" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
-          <prop v="1" k="line_width"/>
-          <prop v="0,100,0,255" k="line_color"/>
+          <prop v="1.5" k="line_width"/>
+          <prop v="0,120,0,255" k="line_color"/>
         </layer>
       </symbol>
       <symbol type="fill" name="2" alpha="0.65">
@@ -103,15 +104,15 @@ def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
         </layer>
         <layer class="LinePatternFill">
           <prop v="45" k="line_angle"/>
-          <prop v="{spacing}" k="line_spacing"/>
-          <prop v="1" k="line_width"/>
-          <prop v="0,80,0,255" k="line_color"/>
+          <prop v="{cross_spacing}" k="line_spacing"/>
+          <prop v="2" k="line_width"/>
+          <prop v="0,100,0,255" k="line_color"/>
         </layer>
         <layer class="LinePatternFill">
           <prop v="135" k="line_angle"/>
-          <prop v="{spacing}" k="line_spacing"/>
-          <prop v="1" k="line_width"/>
-          <prop v="0,80,0,255" k="line_color"/>
+          <prop v="{cross_spacing}" k="line_spacing"/>
+          <prop v="2" k="line_width"/>
+          <prop v="0,100,0,255" k="line_color"/>
         </layer>
       </symbol>
     </symbols>
