@@ -92,7 +92,7 @@ def mosaic_tiles(
     zoom: int,
     tile_size: int = TILE_SIZE,
 ) -> Path:
-    """Stitch downloaded tiles into a single GeoTIFF (EPSG:3857)."""
+    """Stitch downloaded tiles into a single GeoTIFF (EPSG:4326)."""
     if not tile_paths:
         raise ValueError("No tiles to mosaic")
 
@@ -127,7 +127,7 @@ def mosaic_tiles(
 
     logger.info(f"Mosaic: placed {tiles_placed} tiles into {grid_width}x{grid_height}")
 
-    # Compute EPSG:3857 bounds
+    # Compute WGS84 bounds from tile coordinates
     n = 2**zoom
     west = (x_min / n) * 360.0 - 180.0
     east = ((x_max + 1) / n) * 360.0 - 180.0
@@ -149,7 +149,7 @@ def mosaic_tiles(
         "width": grid_width,
         "height": grid_height,
         "count": 4,
-        "crs": "EPSG:3857",
+        "crs": "EPSG:4326",
         "transform": transform,
         "compress": "deflate",
         "tiled": True,
