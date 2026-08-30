@@ -30,12 +30,24 @@ which ipoe 2>/dev/null || echo "NOT_INSTALLED"
 If not installed:
 
 ```bash
-git clone https://github.com/USER/IPOEForge.git /tmp/IPOEForge
+git clone https://github.com/tjdodson/IPOEForge.git /tmp/IPOEForge
 cd /tmp/IPOEForge && uv sync
 export PATH="$PWD/.venv/bin:$PATH"
 ```
 
 Verify: `ipoe --version`
+
+### Updating
+
+If installed via skills.sh:
+```bash
+npx skills update tjdodson/IPOEForge
+```
+
+If installed via git:
+```bash
+cd /path/to/IPOEForge && git pull && uv sync
+```
 
 ## Dependencies
 

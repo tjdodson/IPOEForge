@@ -6,8 +6,8 @@
     <rastershader>
       <colorrampshader colorRampType="EXACT" clip="0">
         <colorrampEntry value="0" label="Unrestricted" color="0,0,0,0"/>
-        <colorrampEntry value="1" label="Restricted" color="255,165,0,128"/>
-        <colorrampEntry value="2" label="Highly Restricted" color="255,0,0,160"/>
+        <colorrampEntry value="1" label="Restricted" color="0,128,0,128"/>
+        <colorrampEntry value="2" label="Severely Restricted" color="0,100,0,160"/>
       </colorrampshader>
     </rastershader>
   </rasterrenderer>
