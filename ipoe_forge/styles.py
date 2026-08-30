@@ -13,9 +13,15 @@ def _scale_factor(zoom: int) -> float:
     return 2.0 ** (13 - zoom)
 
 
-def _hatch_spacing(zoom: int, base: float = 10.0) -> float:
-    """Hatch line spacing that scales with zoom."""
-    return base * _scale_factor(zoom)
+def _hatch_spacing(zoom: int, base: float = 10.0, bbox_area_deg2: float = 1.0) -> float:
+    """Hatch line spacing that scales with zoom and AOI area.
+
+    A 1km² AOI gets tight hatching. A state-wide build gets wide hatching
+    so the basemap stays visible underneath.
+    """
+    spacing = base * _scale_factor(zoom)
+    area_factor = max(1.0, bbox_area_deg2 ** 0.25)
+    return spacing * area_factor
 
 
 def _road_width(road_type: str, zoom: int) -> float:
@@ -50,15 +56,17 @@ MOVEMENT_CLASS_QML = """<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM
 """
 
 
-def _movement_vector_qml(zoom: int) -> str:
+def _movement_vector_qml(zoom: int, bbox_area_deg2: float = 1.0) -> str:
     """Vectorized movement classification QML — ATP 2-01.3 MCOO compliant.
 
     Green hatching per doctrine:
-    - 0 (Unrestricted): transparent fill, green border
+    - 0 (Unrestricted): transparent, no fill/border
     - 1 (Restricted): green diagonal hatch, green border
     - 2 (Severely Restricted): green cross-hatch, green border
+
+    Hatch spacing auto-scales with zoom and AOI size.
     """
-    spacing = _hatch_spacing(zoom)
+    spacing = _hatch_spacing(zoom, base=30.0, bbox_area_deg2=bbox_area_deg2)
     border_width = max(0.3, 0.5 * _scale_factor(zoom))
     return f"""<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
 <qgis version="3.28.0">
@@ -72,12 +80,11 @@ def _movement_vector_qml(zoom: int) -> str:
       <symbol type="fill" name="0" alpha="0">
         <layer class="SimpleFill">
           <prop v="no" k="style"/>
-          <prop v="{border_width}" k="width"/>
-          <prop v="0,128,0,255" k="color"/>
-          <prop v="solid" k="penstyle"/>
+          <prop v="0" k="width"/>
+          <prop v="0,0,0,0" k="color"/>
         </layer>
       </symbol>
-      <symbol type="fill" name="1" alpha="0.4">
+      <symbol type="fill" name="1" alpha="0.25">
         <layer class="SimpleFill">
           <prop v="no" k="style"/>
           <prop v="{border_width}" k="width"/>
@@ -87,11 +94,11 @@ def _movement_vector_qml(zoom: int) -> str:
         <layer class="LinePatternFill">
           <prop v="45" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
-          <prop v="1.5" k="line_width"/>
-          <prop v="0,128,0,200" k="line_color"/>
+          <prop v="1" k="line_width"/>
+          <prop v="0,128,0,180" k="line_color"/>
         </layer>
       </symbol>
-      <symbol type="fill" name="2" alpha="0.5">
+      <symbol type="fill" name="2" alpha="0.35">
         <layer class="SimpleFill">
           <prop v="no" k="style"/>
           <prop v="{border_width}" k="width"/>
@@ -101,14 +108,14 @@ def _movement_vector_qml(zoom: int) -> str:
         <layer class="LinePatternFill">
           <prop v="45" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
-          <prop v="1.5" k="line_width"/>
-          <prop v="0,100,0,200" k="line_color"/>
+          <prop v="1" k="line_width"/>
+          <prop v="0,100,0,180" k="line_color"/>
         </layer>
         <layer class="LinePatternFill">
           <prop v="135" k="line_angle"/>
           <prop v="{spacing}" k="line_spacing"/>
-          <prop v="1.5" k="line_width"/>
-          <prop v="0,100,0,200" k="line_color"/>
+          <prop v="1" k="line_width"/>
+          <prop v="0,100,0,180" k="line_color"/>
         </layer>
       </symbol>
     </symbols>
@@ -222,16 +229,16 @@ def _roads_qml(zoom: int) -> str:
 """
 
 
-def generate_all_styles(output_dir: Path, zoom: int = 13) -> None:
+def generate_all_styles(output_dir: Path, zoom: int = 13, bbox_area_deg2: float = 1.0) -> None:
     """Generate all QML style files for the given zoom level."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    spacing = _hatch_spacing(zoom)
+    spacing = _hatch_spacing(zoom, bbox_area_deg2=bbox_area_deg2)
 
     # Movement class raster (fallback display)
     (output_dir / "movement_class.qml").write_text(MOVEMENT_CLASS_QML)
 
     # Movement class vector (MCOO hatch patterns)
-    (output_dir / "movement_class_vec.qml").write_text(_movement_vector_qml(zoom))
+    (output_dir / "movement_class_vec.qml").write_text(_movement_vector_qml(zoom, bbox_area_deg2))
 
     # Urban areas
     qml = URBAN_AREAS_QML.format(spacing=spacing)

@@ -12,6 +12,14 @@ from pathlib import Path
 import click
 from rich.console import Console
 from rich.logging import RichHandler
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
 from . import __version__
 from .auth import resolve_sources
@@ -29,6 +37,11 @@ from .tile_downloader import download_and_mosaic
 
 console = Console()
 logger = logging.getLogger(__name__)
+
+
+def _bbox_area_deg2(bbox: Bbox) -> float:
+    """Approximate area of a bbox in square degrees."""
+    return (bbox.east - bbox.west) * (bbox.north - bbox.south)
 
 
 def _build_manifest(
@@ -174,76 +187,102 @@ def build(
 
     skip_set = set(skip.split(",")) if skip else set()
     status: dict[str, str] = {}
+    bbox_area = _bbox_area_deg2(aoi_bbox)
 
-    # Elevation pipeline
-    if "elevation" not in skip_set:
-        try:
-            console.print("[cyan]Downloading DEM...[/cyan]")
-            dem_path = out_dir / f"{name}_dem.tif"
-            download_dem(aoi_bbox, dem_path, product=dem_product)
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
 
-            console.print("[cyan]Computing slope...[/cyan]")
-            slope_path = out_dir / f"{name}_slope.tif"
-            compute_slope(dem_path, slope_path)
+        # ── Elevation pipeline ──
+        if "elevation" not in skip_set:
+            try:
+                t = progress.add_task("Downloading DEM", total=6)
+                dem_path = out_dir / f"{name}_dem.tif"
+                download_dem(aoi_bbox, dem_path, product=dem_product)
+                progress.advance(t); progress.update(t, description="Computing slope")
+                slope_path = out_dir / f"{name}_slope.tif"
+                compute_slope(dem_path, slope_path)
+                progress.advance(t)
 
-            if hillshade:
-                console.print("[cyan]Computing hillshade...[/cyan]")
-                hs_path = out_dir / f"{name}_hillshade.tif"
-                compute_hillshade(dem_path, hs_path)
+                if hillshade:
+                    progress.update(t, description="Computing hillshade")
+                    hs_path = out_dir / f"{name}_hillshade.tif"
+                    compute_hillshade(dem_path, hs_path)
+                    progress.advance(t)
+                else:
+                    progress.advance(t)
 
-            console.print("[cyan]Classifying movement...[/cyan]")
-            movement_path = out_dir / f"{name}_movement.tif"
-            classify_movement(slope_path, movement_path)
+                progress.update(t, description="Classifying movement")
+                movement_path = out_dir / f"{name}_movement.tif"
+                classify_movement(slope_path, movement_path)
+                progress.advance(t)
 
-            console.print("[cyan]Vectorizing movement classification...[/cyan]")
-            movement_vec_path = out_dir / f"{name}_movement_class.gpkg"
-            vectorize_movement(movement_path, movement_vec_path)
+                progress.update(t, description="Vectorizing movement")
+                movement_vec_path = out_dir / f"{name}_movement_class.gpkg"
+                vectorize_movement(movement_path, movement_vec_path)
+                progress.advance(t)
 
-            if "contours" not in skip_set:
-                console.print("[cyan]Extracting contours...[/cyan]")
-                contour_path = out_dir / f"{name}_contours.gpkg"
-                extract_contours(dem_path, contour_path, interval=contour_interval)
+                if "contours" not in skip_set:
+                    progress.update(t, description="Extracting contours")
+                    contour_path = out_dir / f"{name}_contours.gpkg"
+                    extract_contours(dem_path, contour_path, interval=contour_interval)
+                progress.advance(t)
 
-            status["elevation"] = "success"
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"Elevation pipeline failed: {e}")
-            status["elevation"] = f"failed: {e}"
+                status["elevation"] = "success"
+                progress.update(t, description="[green]Elevation done", completed=6)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"Elevation pipeline failed: {e}")
+                status["elevation"] = f"failed: {e}"
 
-    # Tile pipeline
-    if "topo" not in skip_set:
-        try:
-            console.print("[cyan]Downloading topo tiles...[/cyan]")
-            topo_path = out_dir / f"{name}_basemap.tif"
-            asyncio.run(download_and_mosaic(sources["topo"], aoi_bbox, zoom, topo_path, concurrency, batch_size, batch_delay))
-            status["basemap"] = "success"
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"Topo download failed: {e}")
-            status["basemap"] = f"failed: {e}"
+        # ── Tile pipeline ──
+        if "topo" not in skip_set:
+            try:
+                topo_path = out_dir / f"{name}_basemap.tif"
+                t = progress.add_task("Downloading topo tiles", total=None)
+                def _topo_cb(done, total):
+                    progress.update(t, completed=done, total=total, description=f"Topo tiles {done}/{total}")
+                asyncio.run(download_and_mosaic(sources["topo"], aoi_bbox, zoom, topo_path, concurrency, batch_size, batch_delay, on_batch_complete=_topo_cb))
+                progress.update(t, description="[green]Topo done", completed=1, total=1)
+                status["basemap"] = "success"
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"Topo download failed: {e}")
+                status["basemap"] = f"failed: {e}"
 
-    if "imagery" not in skip_set:
-        try:
-            console.print("[cyan]Downloading imagery tiles...[/cyan]")
-            img_path = out_dir / f"{name}_imagery.tif"
-            asyncio.run(download_and_mosaic(sources["imagery"], aoi_bbox, zoom, img_path, concurrency, batch_size, batch_delay))
-            status["imagery"] = "success"
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"Imagery download failed: {e}")
-            status["imagery"] = f"failed: {e}"
+        if "imagery" not in skip_set:
+            try:
+                img_path = out_dir / f"{name}_imagery.tif"
+                t = progress.add_task("Downloading imagery tiles", total=None)
+                def _img_cb(done, total):
+                    progress.update(t, completed=done, total=total, description=f"Imagery tiles {done}/{total}")
+                asyncio.run(download_and_mosaic(sources["imagery"], aoi_bbox, zoom, img_path, concurrency, batch_size, batch_delay, on_batch_complete=_img_cb))
+                progress.update(t, description="[green]Imagery done", completed=1, total=1)
+                status["imagery"] = "success"
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"Imagery download failed: {e}")
+                status["imagery"] = f"failed: {e}"
 
-    # Styles
-    style_path = out_dir / "styles"
-    console.print(f"[cyan]Generating QML styles → {style_path}[/cyan]")
-    generate_all_styles(style_path, zoom)
+        # ── Styles ──
+        style_path = out_dir / "styles"
+        t = progress.add_task("Generating QML styles", total=1)
+        generate_all_styles(style_path, zoom, bbox_area_deg2=bbox_area)
+        progress.update(t, completed=1)
+        progress.update(t, description="[green]Styles done")
 
-    # Build manifest
-    manifest = _build_manifest(
-        name=name, bbox_input=bbox, aoi_bbox=aoi_bbox, zoom=zoom,
-        mode=mode, dem_product=dem_product, contour_interval=contour_interval,
-        hillshade=hillshade, sources=sources, status=status, out_dir=out_dir,
-    )
-    manifest_path = out_dir / "build.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2))
-    console.print(f"[cyan]Build manifest → {manifest_path}[/cyan]")
+        # ── Build manifest ──
+        t = progress.add_task("Writing build manifest", total=1)
+        manifest = _build_manifest(
+            name=name, bbox_input=bbox, aoi_bbox=aoi_bbox, zoom=zoom,
+            mode=mode, dem_product=dem_product, contour_interval=contour_interval,
+            hillshade=hillshade, sources=sources, status=status, out_dir=out_dir,
+        )
+        manifest_path = out_dir / "build.json"
+        manifest_path.write_text(json.dumps(manifest, indent=2))
+        progress.update(t, completed=1)
 
     console.print(f"\n[green]Done: {out_dir}[/green]")
     console.print("[green]Drag .tif files into QGIS to view layers[/green]")

@@ -76,10 +76,12 @@ async def download_tiles(
     concurrency: int = DEFAULT_CONCURRENCY,
     batch_size: int = DEFAULT_BATCH_SIZE,
     batch_delay: float = DEFAULT_BATCH_DELAY,
+    on_batch_complete: callable | None = None,
 ) -> list[Path]:
     """Download all tiles for a bbox at a given zoom level.
 
     Uses persistent cache and downloads in batches to avoid server overload.
+    on_batch_complete(done, total) is called after each batch completes.
     """
     grid = TileGrid.from_bbox(bbox, zoom)
     total = len(grid.tiles)
@@ -126,6 +128,8 @@ async def download_tiles(
             done = min((batch_idx + 1) * batch_size, total)
             pct = done / total * 100
             logger.info(f"  batch {batch_idx + 1}/{len(batches)}: {done}/{total} ({pct:.0f}%)")
+            if on_batch_complete:
+                on_batch_complete(done, total)
 
             # Pause between batches to be kind to servers
             if batch_idx < len(batches) - 1:
@@ -221,10 +225,12 @@ async def download_and_mosaic(
     concurrency: int = DEFAULT_CONCURRENCY,
     batch_size: int = DEFAULT_BATCH_SIZE,
     batch_delay: float = DEFAULT_BATCH_DELAY,
+    on_batch_complete: callable | None = None,
 ) -> Path:
     """High-level: download tiles (with cache) and produce a mosaicked GeoTIFF."""
     tile_paths = await download_tiles(
         source, bbox, zoom, output_path.parent, concurrency, batch_size, batch_delay,
+        on_batch_complete=on_batch_complete,
     )
     if not tile_paths:
         raise RuntimeError(f"No tiles downloaded from {source.name}")
