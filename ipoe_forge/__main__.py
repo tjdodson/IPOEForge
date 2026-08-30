@@ -56,6 +56,8 @@ def _build_manifest(
     sources: dict,
     status: dict[str, str],
     out_dir: Path,
+    unrestricted_max: float = 16.7,
+    restricted_max: float = 24.2,
 ) -> dict:
     """Generate a build manifest JSON for reproducibility."""
     # Collect output files with sizes
@@ -93,6 +95,8 @@ def _build_manifest(
             "dem_product": dem_product,
             "contour_interval_m": contour_interval,
             "hillshade": hillshade,
+            "unrestricted_max_deg": unrestricted_max,
+            "restricted_max_deg": restricted_max,
         },
     "sources": {
         k: {"name": v.name, "url_template": v.url_template, "attribution": v.attribution}
@@ -141,6 +145,8 @@ def cli() -> None:
 @click.option("--hillshade/--no-hillshade", default=False, help="Computed hillshade layer")
 @click.option("--skip", type=str, default="", help="Comma-separated layers to skip")
 @click.option("--quiet/--no-quiet", default=False, help="Suppress progress")
+@click.option("--unrestricted-max", type=float, default=16.7, help="Max slope° for unrestricted (default: 16.7° ≈ 30%)")
+@click.option("--restricted-max", type=float, default=24.2, help="Max slope° for restricted (default: 24.2° ≈ 45%)")
 def build(
     bbox: tuple[str, str],
     name: str,
@@ -156,6 +162,8 @@ def build(
     hillshade: bool,
     skip: str,
     quiet: bool,
+    unrestricted_max: float,
+    restricted_max: float,
 ) -> None:
     """Build an IPOE map package from an MGRS bounding box."""
     logging.basicConfig(
@@ -219,7 +227,7 @@ def build(
 
                 progress.update(t, description="Classifying movement")
                 movement_path = out_dir / f"{name}_movement.tif"
-                classify_movement(slope_path, movement_path)
+                classify_movement(slope_path, movement_path, unrestricted_max, restricted_max)
                 progress.advance(t)
 
                 progress.update(t, description="Vectorizing movement")
@@ -279,6 +287,7 @@ def build(
             name=name, bbox_input=bbox, aoi_bbox=aoi_bbox, zoom=zoom,
             mode=mode, dem_product=dem_product, contour_interval=contour_interval,
             hillshade=hillshade, sources=sources, status=status, out_dir=out_dir,
+            unrestricted_max=unrestricted_max, restricted_max=restricted_max,
         )
         manifest_path = out_dir / "build.json"
         manifest_path.write_text(json.dumps(manifest, indent=2))
@@ -336,6 +345,8 @@ def rebuild(
         "hillshade": params["hillshade"],
         "skip": skip,
         "quiet": quiet,
+        "unrestricted_max": params.get("unrestricted_max_deg", 16.7),
+        "restricted_max": params.get("restricted_max_deg", 24.2),
     }
 
     console.print(f"[bold]Rebuilding from {manifest_path}[/bold]")

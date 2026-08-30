@@ -183,20 +183,25 @@ def compute_hillshade(
     return output_path
 
 
-def classify_movement(slope_path: Path, output_path: Path) -> Path:
+def classify_movement(
+    slope_path: Path,
+    output_path: Path,
+    unrestricted_max: float = 16.7,
+    restricted_max: float = 24.2,
+) -> Path:
     """
     Classify terrain for military movement (ATP 2-01.3 Table B-2).
-    0 = Unrestricted (< 30% / < 16.7°)
-    1 = Restricted (30-45% / 16.7-24.2°)
-    2 = Severely Restricted (> 45% / > 24.2°)
+    0 = Unrestricted (< unrestricted_max °)
+    1 = Restricted (unrestricted_max – restricted_max °)
+    2 = Severely Restricted (> restricted_max °)
     """
     with rasterio.open(slope_path) as src:
         slope_data = src.read(1).astype(np.float64)
         profile = src.profile.copy()
 
         classified = np.zeros_like(slope_data, dtype=np.uint8)
-        classified[slope_data >= 16.7] = 1
-        classified[slope_data >= 24.2] = 2
+        classified[slope_data >= unrestricted_max] = 1
+        classified[slope_data >= restricted_max] = 2
 
         nodata = profile.get("nodata")
         if nodata is not None:
