@@ -19,20 +19,84 @@ def download_dem(
     product: str = "SRTM1",
     margin: float = 0.01,
 ) -> Path:
-    """Download SRTM DEM clipped to a bounding box."""
-    import elevation
+    """Download SRTM DEM clipped to a bounding box.
+
+    Downloads raw SRTM HGT tiles from AWS terrain tiles, merges them
+    with gdal_merge, and clips to the bounding box.
+    """
+    import gzip
+    import subprocess
+    import tempfile
+
+    import httpx
 
     padded = bbox.pad(margin)
-    bounds = padded.to_tuple()
+    west, south, east, north = padded.to_tuple()
 
-    logger.info(f"Downloading {product} DEM for {bounds}...")
+    logger.info(f"Downloading {product} DEM for ({west}, {south}, {east}, {north})...")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    elevation.clip(
-        bounds=bounds,
-        output=str(output_path),
-        product=product,
-    )
+    # Determine which 1x1 degree SRTM tiles we need
+    tile_names = set()
+    for lat in range(int(south), int(north) + 1):
+        for lon in range(int(west), int(east) + 1):
+            ns = "N" if lat >= 0 else "S"
+            ew = "E" if lon >= 0 else "W"
+            tile_names.add(f"{ns}{abs(lat):02d}{ew}{abs(lon):03d}")
+
+    logger.info(f"Need SRTM tiles: {sorted(tile_names)}")
+
+    with tempfile.TemporaryDirectory(prefix="ipoe_dem_") as tmpdir:
+        tmpdir = Path(tmpdir)
+        hgt_files = []
+
+        # Download each tile
+        for tile in sorted(tile_names):
+            lat_str = tile[1:3]
+            ns = tile[0]
+            tile[4:7]
+            ew = tile[3]
+            gz_name = f"{tile}.hgt.gz"
+            url = f"https://s3.amazonaws.com/elevation-tiles-prod/skadi/{ns}{lat_str}/{gz_name}"
+            hgt_path = tmpdir / f"{tile}.hgt"
+
+            try:
+                logger.info(f"Downloading {tile}...")
+                resp = httpx.get(url, timeout=60, follow_redirects=True)
+                if resp.status_code == 200:
+                    gz_path = tmpdir / gz_name
+                    gz_path.write_bytes(resp.content)
+                    # Decompress
+                    with gzip.open(str(gz_path), "rb") as f_in, open(hgt_path, "wb") as f_out:
+                        f_out.write(f_in.read())
+                    hgt_files.append(hgt_path)
+                else:
+                    logger.warning(f"Failed to download {tile}: HTTP {resp.status_code}")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"Failed to download {tile}: {e}")
+
+        if not hgt_files:
+            raise RuntimeError("No SRTM tiles downloaded")
+
+        # Merge tiles with gdal_merge
+        vrt_path = tmpdir / "merged.vrt"
+        merge_cmd = [
+            "gdalbuildvrt", "-q", "-overwrite",
+            str(vrt_path),
+        ] + [str(f) for f in hgt_files]
+
+        subprocess.run(merge_cmd, check=True, capture_output=True, timeout=60)
+
+        # Clip to bbox
+        clip_cmd = [
+            "gdal_translate", "-q",
+            "-projwin", str(west), str(north), str(east), str(south),
+            "-of", "GTiff",
+            "-co", "COMPRESS=DEFLATE",
+            str(vrt_path),
+            str(output_path),
+        ]
+        subprocess.run(clip_cmd, check=True, capture_output=True, timeout=60)
 
     logger.info(f"DEM saved to {output_path}")
     return output_path

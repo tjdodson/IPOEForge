@@ -119,7 +119,7 @@ def build(
     skip_set = set(skip.split(",")) if skip else set()
 
     # Output path
-    output_path = Path(output) if output else Path(f"{name}.gpkg")
+    output_path = Path(output) if output else Path(f"outputs/{name}/{name}.gpkg")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Build GPKG
