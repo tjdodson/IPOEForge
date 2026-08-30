@@ -93,7 +93,52 @@ class GeoPackageBuilder:
         """Merge all raster GPKGs into the main GPKG and finalize."""
         if self._raster_tmp:
             self._merge_rasters()
+        self._ensure_srs_entries()
         logger.info(f"GPKG complete: {self.output_path} ({len(self._layers_added)} layers)")
+
+    def _ensure_srs_entries(self) -> None:
+        """Ensure all SRS IDs referenced in gpkg_contents exist in gpkg_spatial_ref_sys."""
+        if not self.output_path.exists():
+            return
+
+        from pyproj import CRS
+
+        conn = sqlite3.connect(str(self.output_path))
+        c = conn.cursor()
+
+        # Get SRS IDs referenced by layers
+        c.execute("SELECT DISTINCT srs_id FROM gpkg_contents")
+        needed_ids = {row[0] for row in c.fetchall()}
+
+        # Get SRS IDs already defined
+        c.execute("SELECT srs_id FROM gpkg_spatial_ref_sys")
+        existing_ids = {row[0] for row in c.fetchall()}
+
+        missing = needed_ids - existing_ids
+        for srs_id in missing:
+            try:
+                crs = CRS.from_epsg(srs_id)
+                wkt2 = crs.to_wkt()
+                # Build legacy WKT for the definition column
+                try:
+                    legacy_wkt = crs.to_wkt("WKT1_GDAL")
+                except Exception:  # noqa: BLE001
+                    legacy_wkt = wkt2
+
+                c.execute(
+                    "INSERT OR IGNORE INTO gpkg_spatial_ref_sys "
+                    "(srs_name, srs_id, organization, organization_coordsys_id, "
+                    "definition, description, definition_12_063, epoch) "
+                    "VALUES (?, ?, 'EPSG', ?, ?, ?, ?, NULL)",
+                    (crs.name, srs_id, srs_id, legacy_wkt,
+                     f"EPSG:{srs_id}", wkt2),
+                )
+                logger.info(f"Added SRS entry: EPSG:{srs_id}")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"Failed to add SRS {srs_id}: {e}")
+
+        conn.commit()
+        conn.close()
 
     def _merge_rasters(self) -> None:
         """Copy raster tables from temp GPKGs into the main GPKG."""
