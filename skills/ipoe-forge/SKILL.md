@@ -1,7 +1,7 @@
 ---
 name: ipoe-forge
 description: Build IPOE map packages (basemap, imagery, DEM, terrain analysis) from MGRS coordinates via CLI
-version: 0.1.0
+version: 0.1.1
 author: Trevor Dodson
 tags:
   - gis
@@ -126,36 +126,35 @@ Rule of thumb: if the bbox spans more than 2 degrees, drop to zoom 10-11.
 
 ## Output
 
-Everything goes to `outputs/{name}/`:
+Everything goes to `outputs/{name}/`. The only folder you need is `qgis_import/`:
 
 ```
 outputs/{name}/
-├── {name}_basemap.tif       Topographic map tiles
-├── {name}_imagery.tif       Satellite imagery
-├── {name}_dem.tif           SRTM elevation (30m)
-├── {name}_slope.tif         Slope in degrees
-├── {name}_hillshade.tif     Shaded relief
-├── {name}_movement.tif      Military movement class (0/1/2)
-└── styles/                  QGIS style files
-    ├── basemap.qml
-    ├── imagery.qml
-    ├── dem.qml
-    ├── slope.qml
-    ├── hillshade.qml
-    └── movement_class.qml
+├── qgis_import/                  Drag this folder into QGIS
+│   ├── {name}_basemap.tif        Topographic map tiles
+│   ├── {name}_basemap.qml        Auto-applied style
+│   ├── {name}_imagery.tif        Satellite imagery
+│   ├── {name}_imagery.qml        Auto-applied style
+│   ├── {name}_movement_class.gpkg  Movement classification (restricted/severely restricted)
+│   └── {name}_movement_class.qml Auto-applied hatch pattern (ATP 2-01.3)
+├── build.json                    Reproducibility manifest
+└── styles/                       All QML styles (reference)
 ```
 
-Drag any `.tif` into QGIS. Apply styles via Layer Properties > Style > Load Style.
+Open `qgis_import/` and drag all 6 files into QGIS. Styles auto-apply.
 
 ## Movement Classification
 
-The movement layer classifies terrain for vehicle mobility per ATP 2-01.3:
+The movement layer classifies terrain for vehicle mobility per ATP 2-01.3 Table B-2:
 
 | Class | Value | Slope | Label |
 |-------|-------|-------|-------|
-| 0 | Unrestricted | < 5° | Open terrain |
-| 1 | Restricted | 5-15° | Difficult for vehicles |
-| 2 | Highly Restricted | > 15° | Impassable for most vehicles |
+| 1 | Restricted | 30-45% (16.7-24.2°) | Difficult for vehicles |
+| 2 | Severely Restricted | > 45% (> 24.2°) | Impassable for most vehicles |
+
+Unrestricted terrain (< 30%) is implied by absence — no hatching shown.
+
+Slope thresholds are configurable via `--unrestricted-max` and `--restricted-max`.
 
 ## Agent Workflow
 

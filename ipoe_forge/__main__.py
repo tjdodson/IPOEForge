@@ -297,10 +297,6 @@ def build(
     for pattern in ("*.aux.xml", ".DS_Store", "*.tif.xml", "*_vec.qml"):
         for f in out_dir.glob(pattern):
             f.unlink()
-
-    # Remove root-level .qml files (duplicated via symlinks in qgis_import/)
-    for f in out_dir.glob("*.qml"):
-        f.unlink()
     # Remove raw movement.tif (redundant with GPKG)
     raw_movement = out_dir / f"{name}_movement.tif"
     if raw_movement.exists():
