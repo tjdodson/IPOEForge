@@ -252,5 +252,61 @@ def build(
         sys.exit(1)
 
 
+@cli.command()
+@click.argument("manifest_path", type=click.Path(exists=True))
+@click.option("--output", type=click.Path(), default=None, help="Output directory (default: original location)")
+@click.option("--concurrency", type=int, default=8, help="Parallel tile downloads")
+@click.option("--batch-size", type=int, default=100, help="Tiles per batch")
+@click.option("--batch-delay", type=float, default=2.0, help="Seconds between batches")
+@click.option("--skip", type=str, default="", help="Comma-separated layers to skip")
+@click.option("--quiet/--no-quiet", default=False, help="Suppress progress")
+def rebuild(
+    manifest_path: str,
+    output: str | None,
+    concurrency: int,
+    batch_size: int,
+    batch_delay: float,
+    skip: str,
+    quiet: bool,
+) -> None:
+    """Rebuild a map package from a build.json manifest."""
+    import json as json_mod
+
+    manifest = json_mod.loads(Path(manifest_path).read_text())
+
+    name = manifest["aoi"]["name"]
+    mgrs_bbox = manifest["aoi"]["mgrs_bbox"]
+    params = manifest["parameters"]
+
+    # Reconstruct bbox tuple for the build command
+    bbox_tuple = tuple(mgrs_bbox)
+
+    # Build kwargs from manifest
+    build_kwargs = {
+        "bbox": bbox_tuple,
+        "name": name,
+        "output": output or str(Path(manifest_path).parent),
+        "zoom": params["zoom"],
+        "mode": params["mode"],
+        "layers": "all",
+        "dem_product": params["dem_product"],
+        "contour_interval": params["contour_interval_m"],
+        "concurrency": concurrency,
+        "batch_size": batch_size,
+        "batch_delay": batch_delay,
+        "hillshade": params["hillshade"],
+        "skip": skip,
+        "quiet": quiet,
+    }
+
+    console.print(f"[bold]Rebuilding from {manifest_path}[/bold]")
+    console.print(f"  Original build: {manifest.get('generated_at', 'unknown')}")
+    console.print(f"  IPOEForge version: {manifest.get('ipoe_version', 'unknown')}")
+
+    # Delegate to build command
+    ctx = click.Context(build)
+    ctx.invoke(build, **build_kwargs)
+
+
 if __name__ == "__main__":
     cli()
