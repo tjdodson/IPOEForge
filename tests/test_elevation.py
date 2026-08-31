@@ -6,7 +6,12 @@ import numpy as np
 import rasterio
 from rasterio.transform import from_bounds
 
-from ipoe_forge.elevation import classify_movement, compute_hillshade, compute_slope
+from ipoe_forge.elevation import (
+    classify_movement,
+    compute_hillshade,
+    compute_slope,
+    srtm_tiles_for_bbox,
+)
 
 
 def _make_test_dem(path: Path, width: int = 100, height: int = 100) -> Path:
@@ -61,3 +66,38 @@ def test_classify_movement(tmp_path):
         data = src.read(1)
         unique = set(np.unique(data))
         assert unique.issubset({0, 1, 2, 255})
+
+
+def test_srtm_tiles_use_floor_not_truncation():
+    """Regression: int() truncates toward zero and picks the wrong tile.
+
+    Camp Robinson, AR. int(-92.35) is -92 -> "W092", the tile immediately EAST
+    of the target. AWS serves it with HTTP 200, so the download appears to
+    succeed; the clip then produces a raster that is 100% NoData, and slope,
+    hillshade and movement classification are all silently empty.
+    """
+    assert srtm_tiles_for_bbox(-92.36, 34.79, -92.24, 34.87) == {"N34W093"}
+
+
+def test_srtm_tiles_southern_hemisphere():
+    """Same truncation bug applies to southern latitudes."""
+    assert srtm_tiles_for_bbox(-71.6, -33.5, -71.4, -33.3) == {"S34W072"}
+
+
+def test_srtm_tiles_eastern_hemisphere_unchanged():
+    """Positive coordinates: int() and floor() agree, so these always worked."""
+    assert srtm_tiles_for_bbox(129.3, 35.90, 129.4, 35.95) == {"N35E129"}
+
+
+def test_srtm_tiles_spanning_multiple_degrees():
+    assert srtm_tiles_for_bbox(-93.5, 34.5, -92.5, 35.5) == {
+        "N34W094",
+        "N34W093",
+        "N35W094",
+        "N35W093",
+    }
+
+
+def test_srtm_tiles_exact_integer_boundary():
+    """A bbox starting exactly on -92.0 belongs to W092, which covers -92..-91."""
+    assert srtm_tiles_for_bbox(-92.0, 34.0, -91.9, 34.1) == {"N34W092"}
