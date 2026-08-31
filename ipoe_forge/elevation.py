@@ -69,8 +69,6 @@ def download_dem(
         for tile in sorted(tile_names):
             lat_str = tile[1:3]
             ns = tile[0]
-            tile[4:7]
-            ew = tile[3]
             gz_name = f"{tile}.hgt.gz"
             url = f"https://s3.amazonaws.com/elevation-tiles-prod/skadi/{ns}{lat_str}/{gz_name}"
             hgt_path = tmpdir / f"{tile}.hgt"

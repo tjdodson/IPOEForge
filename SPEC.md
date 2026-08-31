@@ -1,4 +1,4 @@
-# IPOEForge — Specification v3.0
+# IPOEForge — Specification v3.1
 
 ## Purpose
 
@@ -24,6 +24,8 @@ Automate the creation of IPOE map packages from a single CLI command. Define an 
 | `--hillshade/--no-hillshade` | flag | No | false | ✅ | Computed hillshade layer |
 | `--skip` | list | No | — | ✅ | Comma-separated layers to skip |
 | `--quiet/--no-quiet` | flag | No | false | ✅ | Suppress progress |
+| `--unrestricted-max` | float | No | 16.7° | ✅ | Max slope° for unrestricted (saved in build.json) |
+| `--restricted-max` | float | No | 24.2° | ✅ | Max slope° for restricted (saved in build.json) |
 | `--mgrs` | flag | No | false | ❌ | MGRS grid — uses QGIS native instead |
 | `--vegetation` | flag | No | false | ❌ | Vegetation density analysis — not started |
 | `--hatch` | flag | No | false | ❌ | Movement vectorization — not started |
@@ -43,22 +45,33 @@ Rationale: GPKG raster merging via sqlite3 was unreliable — corrupted layers. 
 
 ```
 outputs/{name}/
-├── {name}_basemap.tif       Topographic map tiles (RGB)
-├── {name}_imagery.tif       Satellite imagery (RGB)
-├── {name}_dem.tif           SRTM elevation (float32)
-├── {name}_slope.tif         Slope in degrees (float32)
-├── {name}_hillshade.tif     Shaded relief (float32)
-├── {name}_movement.tif      Military movement class (int8: 0/1/2)
-└── styles/
-    ├── basemap.qml
-    ├── imagery.qml
-    ├── dem.qml
-    ├── slope.qml
-    ├── hillshade.qml
-    ├── movement_class.qml
-    ├── roads.qml
-    └── urban_areas.qml
+├── {name}_basemap.tif         Topographic map tiles (RGB)
+├── {name}_imagery.tif         Satellite imagery (RGB)
+├── {name}_dem.tif             SRTM elevation (float32)
+├── {name}_slope.tif           Slope in degrees (float32)
+├── {name}_hillshade.tif       Shaded relief (float32, optional)
+├── {name}_movement.tif        Military movement class raster (int8: 0/1/2)
+├── {name}_movement_class.gpkg Military movement class vector (hatch patterns)
+├── {name}_contours.shp        Contour lines with elevation attr
+├── build.json                 Reproducibility manifest (params, sources, thresholds)
+├── styles/                    Auto-apply QML styles
+│   ├── basemap.qml
+│   ├── imagery.qml
+│   ├── dem.qml
+│   ├── slope.qml
+│   ├── hillshade.qml
+│   ├── movement_class.qml     Raster pseudocolor fallback
+│   └── movement_class_vec.qml Vector hatch pattern
+└── qgis_import/               Curated symlinks for QGIS drag-and-drop
+    ├── {name}_basemap.tif -> ../{name}_basemap.tif
+    ├── {name}_imagery.tif -> ../{name}_imagery.tif
+    ├── {name}_movement_class.gpkg -> ../{name}_movement_class.gpkg
+    ├── basemap.qml -> ../styles/basemap.qml
+    ├── imagery.qml -> ../styles/imagery.qml
+    └── movement_class_vec.qml -> ../styles/movement_class_vec.qml
 ```
+
+Auto-apply: QML files are written next to their corresponding layer files (e.g., `basemap.qml` next to `basemap.tif`) so QGIS automatically applies styles when layers are loaded.
 
 ---
 
@@ -69,6 +82,8 @@ outputs/{name}/
 **Actual implementation:** Direct SRTM HGT download from AWS Open Data (`elevation-tiles-prod/skadi/`).
 
 Rationale: The `elevation` library had dependency issues and unreliable merge behavior. Direct download is simpler and more controllable.
+
+SRTM tile naming uses `math.floor()` (not `int()`) for correct tile lookup. SRTM tiles are named by their south-west corner, so `int()` truncation toward zero picks the wrong tile for negative longitudes — a quiet failure where the DEM comes back all NoData but reports success.
 
 ---
 
@@ -268,7 +283,8 @@ Per ATP 2-01.3 and standard military map symbology:
 | `dem` | SRTM 30m | Elevation GeoTIFF, float32 | ✅ |
 | `hillshade` | Computed from DEM | Hillshade (az=315°, alt=45°) | ✅ |
 | `slope` | Computed from DEM | Slope in degrees, float32 | ✅ |
-| `movement` | Computed from slope | Unrestricted/Restricted/Highly Restricted (int8) | ✅ |
+| `movement` | Computed from slope | Unrestricted/Restricted/Severely Restricted (int8) | ✅ |
+| `movement_class` | Vectorized from slope | Hatch patterns with morphological smoothing | ✅ |
 | `vegetation` | Red/green from imagery | Spectral density index, float32 | ❌ Not started |
 
 ### 6.2 Vector Layers — Terrain Analysis (MCOO Components)
@@ -439,17 +455,19 @@ All features must adapt to zoom level. The QML styles use QGIS scale-based visib
 
 ### 8.2 Movement Classification (Hatch Patterns) — ATP 2-01.3 MCOO
 
-Per ATP 2-01.3, all movement classification uses **green** symbology:
+Per ATP 2-01.3 Table B-2, all movement classification uses **green** symbology:
 
 | Class | Slope | Pattern | Color | Border |
 |-------|-------|---------|-------|--------|
-| Unrestricted | < 5° | No hatching | Transparent | Green border |
-| Restricted | 5–15° | Single diagonal hatch (45°) | Green | Green border |
-| Severely Restricted | > 15° | Cross-hatch (45° + 135°) | Dark green | Green border |
+| Unrestricted | < 16.7° (< 30%) | No hatching | Transparent | Green border |
+| Restricted | 16.7–24.2° (30–45%) | Single diagonal hatch (45°) | Green | Green border |
+| Severely Restricted | > 24.2° (> 45%) | Cross-hatch (45° + 135°) | Dark green | Green border |
 
-Hatch spacing scales with zoom: `base_spacing * 2^(13 - zoom)`.
+Slope thresholds are configurable via `--unrestricted-max` (default 16.7°) and `--restricted-max` (default 24.2°), and saved in `build.json` for reproducibility.
 
-The vectorized movement layer (`movement_class.gpkg`) renders proper hatch patterns. The raster fallback (`movement.class.tif`) uses pseudocolor.
+Hatch spacing auto-scales with AOI size: `base_spacing * (area_deg2 ^ 0.3) * 2^(13 - zoom)`. Cross-hatch spacing is 60% of single-hatch spacing for visual distinction.
+
+The vectorized movement layer (`movement_class.gpkg`) renders proper hatch patterns with morphological smoothing (binary_closing + binary_opening) for cohesive blob areas. Unrestricted areas are NOT included in the vector output — implied by absence. The raster fallback (`movement.tif`) uses pseudocolor.
 
 ### MCOO Color Control Measures (ATP 2-01.3 Table 4-4)
 
@@ -550,27 +568,34 @@ mgrs>=1.2             # MGRS coordinate conversion
 ## 11. Implementation Phases
 
 ### Phase 1 — Core Infrastructure ✅
-- CLI, auth, DEM download, slope, hillshade
-- Tile download (topo + imagery) + mosaic
+- CLI (`ipoe build`), auth, DEM download, slope, hillshade
+- Tile download (topo + imagery) + mosaic with batch retry/backoff
 - Individual GeoTIFF output (diverged from GPKG)
-- Basic QML styles
-- Persistent tile cache
-- Batch downloading with retry/backoff
+- Movement classification (raster + vectorized with morphological smoothing)
+- Green hatch patterns per ATP 2-01.3 (auto-scales with AOI size)
+- Configurable slope thresholds (`--unrestricted-max`, `--restricted-max`)
+- Build manifest (`build.json`) for reproducibility
+- `ipoe rebuild` command to recreate from build.json
+- Auto-apply QML styles (written next to layer files)
+- Curated `qgis_import/` folder with symlinks for QGIS drag-and-drop
+- Persistent tile cache at `~/.cache/ipoe/tiles/`
+- Rich progress bar with spinner + percentage + elapsed time
 - OpenCode skill for agent-driven usage
-- README, published to GitHub
+- README, published to GitHub at `tjdodson/IPOEForge`
+- 38 unit tests passing
 
 ### Phase 2 — OSM Vector Layers ❌ Next
-- Overpass query (all tags above)
+- Overpass query (all tags in §7)
 - Parse into classified GeoDataFrames
 - Roads, trails, hydrology, buildings, places, admin boundaries
 - Military installation symbol generation via `military-symbol`
 - Contour extraction verification
+- Urban buildup black cross-hatch (ATP 2-01.3)
 
 ### Phase 3 — Analysis & Symbology ❌
 - Vegetation density (red/green spectral)
-- Movement classification vectorization + hatch patterns
-- Urban buildup black cross-hatch (ATP 2-01.3)
 - All QML styles (military standard)
+- Cover/concealment, observation/fields of fire
 
 ### Phase 4 — Composites & Polish ❌
 - Composite topo/imagery baking
@@ -587,25 +612,28 @@ mgrs>=1.2             # MGRS coordinate conversion
 IPOEForge/
 ├── ipoe_forge/
 │   ├── __init__.py
-│   ├── __main__.py          # CLI entry point
-│   ├── config.py            # Data source configs, thresholds
+│   ├── __main__.py          # CLI entry point (build, rebuild)
+│   ├── config.py            # Data source configs, thresholds, PUBLIC_SOURCES
 │   ├── models.py            # Bbox, AOIMetadata, dataclasses
 │   ├── auth.py              # PKI/cert detection + public fallback
-│   ├── tile_downloader.py   # XYZ tile fetching + mosaic
-│   ├── elevation.py         # DEM download, slope, hillshade, movement
+│   ├── tile_downloader.py   # Async XYZ tile fetching + mosaic + batch retry
+│   ├── elevation.py         # DEM download, slope, hillshade, movement, srtm_tiles_for_bbox()
 │   ├── geopackager.py       # GPKG assembly (legacy, no longer used in main pipeline)
-│   ├── styles.py            # QML style generation
+│   ├── styles.py            # QML style generation + auto-apply
 │   ├── osm_features.py      # (not started) Roads, trails, buildings, places
 │   ├── hydrology.py         # (not started) OSM water features
 │   ├── vegetation.py        # (not started) Red/green spectral density
-│   ├── installations.py     # (not started) Military symbol generation
-│   └── mgrs_grid.py         # (deleted) MGRS grid — uses QGIS native instead
+│   └── installations.py     # (not started) Military symbol generation
 ├── skills/ipoe-forge/
 │   └── SKILL.md             # OpenCode skill for agent-driven usage
-├── tests/
+├── tests/                   # 38 unit tests
 ├── outputs/                 # Generated map packages
+│   ├── pohang_korea/        # Reference build
+│   ├── springdale_ar/       # Arkansas build
+│   ├── flying_horse_co/     # Colorado build
+│   └── ntc_fort_irwin/      # NTC/Fort Irwin build
 ├── pyproject.toml
-├── SPEC.md                  # This file
+├── SPEC.md                  # This file (v3.1)
 ├── README.md
 ├── CONTRIBUTING.md
 └── AGENTS.md
