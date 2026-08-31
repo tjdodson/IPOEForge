@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import math
+import time
 from pathlib import Path
 
 import numpy as np
@@ -73,20 +74,29 @@ def download_dem(
             url = f"https://s3.amazonaws.com/elevation-tiles-prod/skadi/{ns}{lat_str}/{gz_name}"
             hgt_path = tmpdir / f"{tile}.hgt"
 
-            try:
-                logger.info(f"Downloading {tile}...")
-                resp = httpx.get(url, timeout=60, follow_redirects=True)
-                if resp.status_code == 200:
-                    gz_path = tmpdir / gz_name
-                    gz_path.write_bytes(resp.content)
-                    # Decompress
-                    with gzip.open(str(gz_path), "rb") as f_in, open(hgt_path, "wb") as f_out:
-                        f_out.write(f_in.read())
-                    hgt_files.append(hgt_path)
-                else:
+            logger.info(f"Downloading {tile}...")
+            for attempt in range(3):
+                try:
+                    resp = httpx.get(url, timeout=60, follow_redirects=True)
+                    if resp.status_code == 200:
+                        gz_path = tmpdir / gz_name
+                        gz_path.write_bytes(resp.content)
+                        # Decompress
+                        with gzip.open(str(gz_path), "rb") as f_in, open(hgt_path, "wb") as f_out:
+                            f_out.write(f_in.read())
+                        hgt_files.append(hgt_path)
+                        break
+                    if resp.status_code == 429:
+                        time.sleep(2 ** attempt)
+                        continue
                     logger.warning(f"Failed to download {tile}: HTTP {resp.status_code}")
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"Failed to download {tile}: {e}")
+                    break
+                except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError) as e:
+                    if attempt < 2:
+                        logger.info(f"Retry {attempt + 1}/3 for {tile}: {e}")
+                        time.sleep(1 + attempt)
+                    else:
+                        logger.warning(f"Failed to download {tile} after 3 attempts: {e}")
 
         if not hgt_files:
             raise RuntimeError("No SRTM tiles downloaded")

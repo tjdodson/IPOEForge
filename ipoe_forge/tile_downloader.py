@@ -52,7 +52,7 @@ async def _fetch_tile(
                 if attempt < retries - 1:
                     await asyncio.sleep(1 + attempt)
                 else:
-                    logger.debug(f"Failed to fetch tile {coord}: {e}")
+                    logger.warning(f"Failed to fetch tile {coord} after {retries} attempts: {e}")
     return None
 
 
@@ -125,17 +125,23 @@ async def download_tiles(
             batch_ok = [p for p in results if p is not None]
             downloaded.extend(batch_ok)
 
+            failed = len(batch) - len(batch_ok)
+            if failed:
+                logger.warning(f"  batch {batch_idx + 1}: {failed}/{len(batch)} tiles failed")
+
             done = min((batch_idx + 1) * batch_size, total)
             pct = done / total * 100
             logger.info(f"  batch {batch_idx + 1}/{len(batches)}: {done}/{total} ({pct:.0f}%)")
             if on_batch_complete:
-                on_batch_complete(done, total)
+                on_batch_complete(len(downloaded), total)
 
             # Pause between batches to be kind to servers
             if batch_idx < len(batches) - 1:
                 await asyncio.sleep(batch_delay)
 
     logger.info(f"Downloaded {len(downloaded)}/{total} tiles")
+    if len(downloaded) < total:
+        logger.warning(f"  {total - len(downloaded)} tiles failed to download from {source.name}")
     return downloaded
 
 
