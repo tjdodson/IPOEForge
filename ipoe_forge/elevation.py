@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +12,25 @@ import rasterio
 from .models import Bbox
 
 logger = logging.getLogger(__name__)
+
+
+def srtm_tiles_for_bbox(west: float, south: float, east: float, north: float) -> set[str]:
+    """Return the SRTM 1x1-degree tile names covering a bounding box.
+
+    SRTM tiles are named by their SOUTH-WEST corner, so the tile index is
+    ``math.floor()``, not ``int()``. ``int()`` truncates toward zero, so for a
+    western longitude such as -92.35 it yields -92 ("W092") instead of -93
+    ("W093") -- the tile immediately EAST of the target. That tile exists and
+    AWS serves it with HTTP 200, so nothing raises; the DEM is then clipped to
+    a window the tile does not cover and comes out entirely NoData.
+    """
+    tiles: set[str] = set()
+    for lat in range(math.floor(south), math.floor(north) + 1):
+        for lon in range(math.floor(west), math.floor(east) + 1):
+            ns = "N" if lat >= 0 else "S"
+            ew = "E" if lon >= 0 else "W"
+            tiles.add(f"{ns}{abs(lat):02d}{ew}{abs(lon):03d}")
+    return tiles
 
 
 def download_dem(
@@ -37,12 +57,7 @@ def download_dem(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Determine which 1x1 degree SRTM tiles we need
-    tile_names = set()
-    for lat in range(int(south), int(north) + 1):
-        for lon in range(int(west), int(east) + 1):
-            ns = "N" if lat >= 0 else "S"
-            ew = "E" if lon >= 0 else "W"
-            tile_names.add(f"{ns}{abs(lat):02d}{ew}{abs(lon):03d}")
+    tile_names = srtm_tiles_for_bbox(west, south, east, north)
 
     logger.info(f"Need SRTM tiles: {sorted(tile_names)}")
 
